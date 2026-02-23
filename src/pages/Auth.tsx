@@ -117,9 +117,9 @@ const Auth = () => {
               <Ship className="w-8 h-8 text-primary" />
             </div>
           </div>
-          <CardTitle className="text-2xl font-bold">Pendataan Bongkar</CardTitle>
+          <CardTitle className="text-2xl font-bold">PPN Tegalsari</CardTitle>
           <CardDescription>
-            Sistem pendataan hasil bongkar kapal
+            Sistem Pendataan Hasil Bongkar Kapal — PPN Tegalsari
           </CardDescription>
         </CardHeader>
         <CardContent>

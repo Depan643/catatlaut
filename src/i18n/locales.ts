@@ -8,7 +8,7 @@ export const LOCALE_LABELS: Record<Locale, string> = {
 
 const id = {
   // App
-  appTitle: 'Pendataan Kapal',
+  appTitle: 'PPN Tegalsari',
   // Nav
   inputBaru: 'Input Baru',
   riwayat: 'Riwayat',
@@ -81,7 +81,7 @@ const id = {
 };
 
 const en: typeof id = {
-  appTitle: 'Ship Data Collection',
+  appTitle: 'PPN Tegalsari',
   inputBaru: 'New Input',
   riwayat: 'History',
   namaKapal: 'Ship Name',
@@ -150,7 +150,7 @@ const en: typeof id = {
 };
 
 const jv: typeof id = {
-  appTitle: 'Pendataan Kapal',
+  appTitle: 'PPN Tegalsari',
   inputBaru: 'Input Anyar',
   riwayat: 'Riwayat',
   namaKapal: 'Jenenge Kapal',

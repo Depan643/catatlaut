@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { supabase } from '@/integrations/supabase/client';
 import { useKapal } from '@/contexts/KapalContext';
 import { useRecentJenis } from '@/hooks/useRecentJenis';
 import { JenisIkanSidebar } from '@/components/JenisIkanSidebar';
@@ -15,10 +16,11 @@ import { KapalPhotoManager } from '@/components/KapalPhotoManager';
 import { DarkModeToggle } from '@/components/DarkModeToggle';
 import {
   ArrowLeft, Ship, Clock, CheckCircle2, Table, List, BarChart3,
-  Pencil, Plus, Loader2, Save, Image, Lock,
+  Pencil, Plus, Loader2, Save, Image, Lock, StickyNote,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { Textarea } from '@/components/ui/textarea';
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
@@ -54,8 +56,34 @@ const InputPage = () => {
   const [editingEntry, setEditingEntry] = useState<Entry | null>(null);
   const [editValue, setEditValue] = useState('');
   const [showPIPPConfirm, setShowPIPPConfirm] = useState(false);
+  const [showNotes, setShowNotes] = useState(false);
+  const [notes, setNotes] = useState('');
+  const [savingNotes, setSavingNotes] = useState(false);
 
   const isLocked = kapal?.donePIPP ?? false;
+
+  // Load notes from kapal
+  useEffect(() => {
+    if (kapal && id) {
+      supabase.from('kapal_data').select('notes').eq('id', id).maybeSingle().then(({ data }) => {
+        if (data) setNotes((data as any).notes || '');
+      });
+    }
+  }, [id, kapal]);
+
+  const handleSaveNotes = async () => {
+    if (!id) return;
+    setSavingNotes(true);
+    try {
+      await supabase.from('kapal_data').update({ notes } as any).eq('id', id);
+      toast.success('Catatan tersimpan');
+      setShowNotes(false);
+    } catch {
+      toast.error('Gagal menyimpan catatan');
+    } finally {
+      setSavingNotes(false);
+    }
+  };
 
   // Auto-switch view mode when locked
   useEffect(() => {
@@ -214,21 +242,30 @@ const InputPage = () => {
                 </div>
               )}
             </div>
-            <button
-              onClick={() => {
-                if (!kapal.donePIPP) {
-                  setShowPIPPConfirm(true);
-                } else {
-                  togglePIPP(kapal.id);
-                }
-              }}
-              className={`badge-status transition-all text-xs ${
-                kapal.donePIPP ? 'bg-success/10 text-success' : 'bg-muted text-muted-foreground'
-              }`}
-            >
-              {kapal.donePIPP ? <Lock className="w-3.5 h-3.5" /> : <CheckCircle2 className="w-3.5 h-3.5" />}
-              {kapal.donePIPP ? 'Done PIPP 🔒' : 'PIPP'}
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setShowNotes(true)}
+                className={`badge-status transition-all text-xs ${notes.trim() ? 'bg-accent/10 text-accent' : 'bg-muted text-muted-foreground'}`}
+              >
+                <StickyNote className="w-3.5 h-3.5" />
+                Catatan {notes.trim() ? '📝' : ''}
+              </button>
+              <button
+                onClick={() => {
+                  if (!kapal.donePIPP) {
+                    setShowPIPPConfirm(true);
+                  } else {
+                    togglePIPP(kapal.id);
+                  }
+                }}
+                className={`badge-status transition-all text-xs ${
+                  kapal.donePIPP ? 'bg-success/10 text-success' : 'bg-muted text-muted-foreground'
+                }`}
+              >
+                {kapal.donePIPP ? <Lock className="w-3.5 h-3.5" /> : <CheckCircle2 className="w-3.5 h-3.5" />}
+                {kapal.donePIPP ? 'Done PIPP 🔒' : 'PIPP'}
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -447,6 +484,33 @@ const InputPage = () => {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Notes Dialog */}
+      <Dialog open={showNotes} onOpenChange={setShowNotes}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <StickyNote className="w-5 h-5 text-accent" /> Catatan
+            </DialogTitle>
+          </DialogHeader>
+          <Textarea
+            value={notes}
+            onChange={e => setNotes(e.target.value)}
+            placeholder="Tulis catatan untuk kapal ini..."
+            className="min-h-[120px] resize-none"
+            disabled={isLocked}
+          />
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowNotes(false)}>Tutup</Button>
+            {!isLocked && (
+              <Button onClick={handleSaveNotes} disabled={savingNotes}>
+                {savingNotes ? <Loader2 className="w-4 h-4 animate-spin mr-1" /> : <Save className="w-4 h-4 mr-1" />}
+                Simpan
+              </Button>
+            )}
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

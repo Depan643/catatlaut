@@ -32,7 +32,7 @@ export const JENIS_IKAN = [
   "Baronang/Semadar",
   "Bawal Hitam/Tiplek",
   "Beloso/Boso",
-  "Biji Nangka/Jenggotan",
+  
   "Buntal/Buntek",
   "Cendro/Tracas",
   "Coklatan",
