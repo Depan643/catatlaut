@@ -1,4 +1,5 @@
 import { useEffect } from "react";
+import { useOnlineStatus } from "@/hooks/useOnlineStatus";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -37,6 +38,7 @@ const applyAccentColor = (colorValue: string) => {
 };
 
 const ThemeInitializer = () => {
+  useOnlineStatus();
   useEffect(() => {
     const loadTheme = async () => {
       const { data: { session } } = await supabase.auth.getSession();

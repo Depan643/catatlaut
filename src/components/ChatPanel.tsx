@@ -144,6 +144,49 @@ const getStickerFromMessage = (msg: string) => {
 
 const isEmojiSticker = (sticker: { id: string; text: string; img?: string }) => !sticker.img;
 
+// Format chat message with paragraphs, bullet points, numbered lists (WhatsApp-style)
+const formatChatMessage = (text: string): React.ReactNode => {
+  const lines = text.split('\n');
+  const elements: React.ReactNode[] = [];
+  
+  lines.forEach((line, i) => {
+    const trimmed = line.trim();
+    
+    // Numbered list: "1. text" or "1) text"
+    const numMatch = trimmed.match(/^(\d+)[.)]\s+(.+)/);
+    if (numMatch) {
+      elements.push(
+        <span key={i} className="flex gap-1.5">
+          <span className="shrink-0 font-medium">{numMatch[1]}.</span>
+          <span>{numMatch[2]}</span>
+        </span>
+      );
+      return;
+    }
+    
+    // Bullet list: "- text" or "• text" or "* text"
+    const bulletMatch = trimmed.match(/^[-•*]\s+(.+)/);
+    if (bulletMatch) {
+      elements.push(
+        <span key={i} className="flex gap-1.5">
+          <span className="shrink-0">•</span>
+          <span>{bulletMatch[1]}</span>
+        </span>
+      );
+      return;
+    }
+    
+    // Regular line
+    if (trimmed === '') {
+      elements.push(<span key={i} className="block h-2" />);
+    } else {
+      elements.push(<span key={i} className="block">{line}</span>);
+    }
+  });
+  
+  return <>{elements}</>;
+};
+
 export const ChatPanel: React.FC = () => {
   const { user } = useAuth();
   const { isAdmin } = useAdminCheck();
@@ -164,20 +207,40 @@ export const ChatPanel: React.FC = () => {
   const [editText, setEditText] = useState('');
   const [showGroupSettings, setShowGroupSettings] = useState(false);
   const [groupName, setGroupName] = useState('Grup Semua Petugas');
+  const [typingUsers, setTypingUsers] = useState<string[]>([]);
   const scrollRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const selectedUserRef = useRef<string | null>(null);
+  const typingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => { selectedUserRef.current = selectedUser; }, [selectedUser]);
 
-  // Update last_seen periodically
-  useEffect(() => {
+  // Typing indicator: update typing_at when typing
+  const handleTyping = useCallback(() => {
     if (!user) return;
-    const update = () => supabase.from('profiles').update({ last_seen: new Date().toISOString() } as any).eq('user_id', user.id).then();
-    update();
-    const interval = setInterval(update, 60000);
+    const target = selectedUser === null ? 'group' : selectedUser;
+    supabase.from('profiles').update({ typing_at: new Date().toISOString(), typing_to: target } as any).eq('user_id', user.id).then();
+    if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+    typingTimeoutRef.current = setTimeout(() => {
+      supabase.from('profiles').update({ typing_at: null, typing_to: null } as any).eq('user_id', user.id).then();
+    }, 3000);
+  }, [user, selectedUser]);
+
+  // Check typing status of other users
+  useEffect(() => {
+    const interval = setInterval(() => {
+      const now = new Date();
+      const typing = users.filter(u => {
+        if (u.user_id === user?.id) return false;
+        const profile = u as any;
+        if (!profile.last_seen) return false;
+        // We check typing_at from the profiles data
+        return false; // Will be updated via realtime
+      });
+      setTypingUsers(typing.map(u => u.user_id));
+    }, 2000);
     return () => clearInterval(interval);
-  }, [user]);
+  }, [users, user?.id]);
 
   const userMap = useMemo(() => {
     const map = new Map<string, UserProfile>();
@@ -203,8 +266,22 @@ export const ChatPanel: React.FC = () => {
   const fetchUsers = useCallback(async () => {
     const { data } = await supabase
       .from('profiles')
-      .select('user_id, display_name, email, avatar_url, username, bio, phone, location, created_at, last_seen');
-    setUsers((data || []) as UserProfile[]);
+      .select('user_id, display_name, email, avatar_url, username, bio, phone, location, created_at, last_seen, typing_at, typing_to');
+    const profiles = (data || []) as (UserProfile & { typing_at?: string; typing_to?: string })[];
+    setUsers(profiles as UserProfile[]);
+    
+    // Update typing users
+    const now = new Date();
+    const typingNow = profiles.filter(u => {
+      if (u.user_id === user?.id) return false;
+      if (!u.typing_at) return false;
+      const elapsed = (now.getTime() - new Date(u.typing_at).getTime()) / 1000;
+      if (elapsed > 4) return false;
+      const cur = selectedUserRef.current;
+      if (cur === null) return u.typing_to === 'group';
+      return u.typing_to === user?.id;
+    });
+    setTypingUsers(typingNow.map(u => u.user_id));
   }, []);
 
   const fetchMessages = useCallback(async () => {
@@ -221,7 +298,7 @@ export const ChatPanel: React.FC = () => {
     setLoading(false);
   }, [user, selectedUser]);
 
-  useEffect(() => { fetchUsers(); const i = setInterval(fetchUsers, 30000); return () => clearInterval(i); }, [fetchUsers]);
+  useEffect(() => { fetchUsers(); const i = setInterval(fetchUsers, 5000); return () => clearInterval(i); }, [fetchUsers]);
   useEffect(() => { fetchMessages(); }, [fetchMessages]);
 
   // Realtime
@@ -444,10 +521,13 @@ export const ChatPanel: React.FC = () => {
                     <span className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-success rounded-full border-2 border-card" />
                   )}
                 </div>
-                <div>
+              <div>
                   <p className="text-sm font-bold">{getUserName(selectedUser)}</p>
                   <p className="text-[10px] text-muted-foreground">
-                    {isOnline(selectedUser) ? '🟢 Online' : 'Ketuk untuk lihat profil'}
+                    {isOnline(selectedUser) ? '🟢 Online' : (() => {
+                      const u = userMap.get(selectedUser);
+                      return u?.last_seen ? `Terakhir dilihat ${format(new Date(u.last_seen), 'dd MMM HH:mm', { locale: idLocale })}` : 'Offline';
+                    })()}
                   </p>
                 </div>
               </div>
@@ -493,11 +573,27 @@ export const ChatPanel: React.FC = () => {
                               </p>
                             )}
                             {sticker ? (
-                              <div className="p-1">
-                                {isEmojiSticker(sticker) ? (
-                                  <span className="text-6xl">{sticker.text}</span>
-                                ) : (
-                                  <img src={(sticker as any).img} alt={sticker.text} className="w-28 h-28 rounded-xl object-cover" />
+                              <div className="flex items-end gap-1">
+                                <div className="p-1">
+                                  {isEmojiSticker(sticker) ? (
+                                    <span className="text-6xl">{sticker.text}</span>
+                                  ) : (
+                                    <img src={(sticker as any).img} alt={sticker.text} className="w-28 h-28 rounded-xl object-cover" />
+                                  )}
+                                </div>
+                                {isMine && (
+                                  <DropdownMenu>
+                                    <DropdownMenuTrigger asChild>
+                                      <Button variant="ghost" size="icon" className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
+                                        <MoreVertical className="w-3 h-3" />
+                                      </Button>
+                                    </DropdownMenuTrigger>
+                                    <DropdownMenuContent align="end" className="w-32">
+                                      <DropdownMenuItem className="text-destructive" onClick={() => handleDeleteMessage(msg.id)}>
+                                        <Trash2 className="w-3 h-3 mr-2" /> Hapus
+                                      </DropdownMenuItem>
+                                    </DropdownMenuContent>
+                                  </DropdownMenu>
                                 )}
                               </div>
                             ) : (
@@ -530,7 +626,7 @@ export const ChatPanel: React.FC = () => {
                                       onClick={() => window.open(msg.image_url!, '_blank')} />
                                   )}
                                   {msg.message && msg.message !== '📷 Foto' && (
-                                    <span className="whitespace-pre-wrap break-words leading-relaxed">{msg.message}</span>
+                                    <span className="whitespace-pre-wrap break-words leading-relaxed">{formatChatMessage(msg.message)}</span>
                                   )}
                                   {msg.message === '📷 Foto' && !msg.image_url && <span>{msg.message}</span>}
                                   <span className={`text-[9px] ml-2 inline-block align-bottom ${isMine ? 'text-primary-foreground/60' : 'text-muted-foreground'}`}>
@@ -538,22 +634,6 @@ export const ChatPanel: React.FC = () => {
                                     {format(new Date(msg.created_at), 'HH:mm')}
                                   </span>
                                 </div>
-                                {!isMine && (
-                                  <DropdownMenu>
-                                    <DropdownMenuTrigger asChild>
-                                      <Button variant="ghost" size="icon" className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
-                                        <MoreVertical className="w-3 h-3" />
-                                      </Button>
-                                    </DropdownMenuTrigger>
-                                    <DropdownMenuContent align="start" className="w-32">
-                                      {isAdmin && (
-                                        <DropdownMenuItem className="text-destructive" onClick={() => handleDeleteMessage(msg.id)}>
-                                          <Trash2 className="w-3 h-3 mr-2" /> Hapus
-                                        </DropdownMenuItem>
-                                      )}
-                                    </DropdownMenuContent>
-                                  </DropdownMenu>
-                                )}
                               </div>
                             )}
                           </div>
@@ -602,6 +682,15 @@ export const ChatPanel: React.FC = () => {
             </div>
           )}
 
+          {/* Typing indicator */}
+          {typingUsers.length > 0 && (
+            <div className="px-3 py-1 border-t bg-card shrink-0">
+              <p className="text-[11px] text-muted-foreground italic animate-pulse">
+                {typingUsers.map(id => getUserName(id)).join(', ')} sedang mengetik...
+              </p>
+            </div>
+          )}
+
           {/* Input */}
           <div className="p-2 border-t bg-card shrink-0">
             <input ref={fileInputRef} type="file" accept="image/*" onChange={handleImageUpload} className="hidden" />
@@ -614,7 +703,7 @@ export const ChatPanel: React.FC = () => {
                 onClick={() => fileInputRef.current?.click()} disabled={uploadingImage}>
                 {uploadingImage ? <Loader2 className="w-5 h-5 animate-spin" /> : <ImageIcon className="w-5 h-5" />}
               </Button>
-              <Input placeholder="Tulis pesan..." value={newMessage} onChange={e => setNewMessage(e.target.value)}
+              <Input placeholder="Tulis pesan..." value={newMessage} onChange={e => { setNewMessage(e.target.value); handleTyping(); }}
                 onKeyDown={e => e.key === 'Enter' && !e.shiftKey && handleSend()}
                 className="flex-1 rounded-full h-9 text-sm" />
               <Button size="icon" onClick={() => handleSend()} disabled={!newMessage.trim() || sending}

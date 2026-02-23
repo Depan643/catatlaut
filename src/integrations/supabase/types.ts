@@ -124,6 +124,7 @@ export type Database = {
           jenis_pendataan: string
           mulai_bongkar: string | null
           nama_kapal: string
+          notes: string | null
           posisi_dermaga: string | null
           selesai_bongkar: string | null
           tanda_selar_gt: string
@@ -141,6 +142,7 @@ export type Database = {
           jenis_pendataan: string
           mulai_bongkar?: string | null
           nama_kapal: string
+          notes?: string | null
           posisi_dermaga?: string | null
           selesai_bongkar?: string | null
           tanda_selar_gt: string
@@ -158,6 +160,7 @@ export type Database = {
           jenis_pendataan?: string
           mulai_bongkar?: string | null
           nama_kapal?: string
+          notes?: string | null
           posisi_dermaga?: string | null
           selesai_bongkar?: string | null
           tanda_selar_gt?: string
@@ -184,6 +187,8 @@ export type Database = {
           phone: string | null
           theme: string | null
           timezone: string | null
+          typing_at: string | null
+          typing_to: string | null
           updated_at: string
           user_id: string
           username: string | null
@@ -202,6 +207,8 @@ export type Database = {
           phone?: string | null
           theme?: string | null
           timezone?: string | null
+          typing_at?: string | null
+          typing_to?: string | null
           updated_at?: string
           user_id: string
           username?: string | null
@@ -220,6 +227,8 @@ export type Database = {
           phone?: string | null
           theme?: string | null
           timezone?: string | null
+          typing_at?: string | null
+          typing_to?: string | null
           updated_at?: string
           user_id?: string
           username?: string | null

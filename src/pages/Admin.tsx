@@ -834,12 +834,18 @@ const Admin = () => {
                               </div>
                               {kEntries.length > 0 ? (
                                 (() => {
-                                  // Aggregate by jenis
+                                  // Aggregate by jenis, grouping cumi types
+                                  const CUMI_GROUP: Record<string, string> = {};
+                                  ['2B','3B','4B','5B','2L','3L','4L','5L','CK','CDL'].forEach(j => CUMI_GROUP[j] = 'Cumi');
+                                  ['Sotong','Semampar'].forEach(j => CUMI_GROUP[j] = 'Sotong/Semampar');
+                                  
+                                  const isCumi = k.jenis_pendataan === 'cumi';
                                   const jenisMap: Record<string, { total: number; count: number }> = {};
                                   kEntries.forEach(e => {
-                                    if (!jenisMap[e.jenis]) jenisMap[e.jenis] = { total: 0, count: 0 };
-                                    jenisMap[e.jenis].total += Number(e.berat);
-                                    jenisMap[e.jenis].count++;
+                                    const key = isCumi && CUMI_GROUP[e.jenis] ? CUMI_GROUP[e.jenis] : e.jenis;
+                                    if (!jenisMap[key]) jenisMap[key] = { total: 0, count: 0 };
+                                    jenisMap[key].total += Number(e.berat);
+                                    jenisMap[key].count++;
                                   });
                                   const sortedJenis = Object.entries(jenisMap).sort((a, b) => b[1].total - a[1].total);
                                   return (

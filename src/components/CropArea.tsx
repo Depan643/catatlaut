@@ -168,6 +168,7 @@ export const CropArea: React.FC<CropAreaProps> = ({ imageSrc, imgRef, onUpload, 
                 height: imgH,
                 left: (CONTAINER_SIZE - imgW) / 2 + offsetX,
                 top: (CONTAINER_SIZE - imgH) / 2 + offsetY,
+                objectFit: 'contain',
               }}
             />
           </div>
