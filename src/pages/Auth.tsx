@@ -113,13 +113,14 @@ const Auth = () => {
       <Card className="w-full max-w-md shadow-xl">
         <CardHeader className="text-center space-y-2">
           <div className="flex justify-center">
-            <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center">
-              <Ship className="w-8 h-8 text-primary" />
+            <div className="w-16 h-16 rounded-full bg-primary flex items-center justify-center shadow-lg">
+              <Ship className="w-8 h-8 text-primary-foreground" />
             </div>
           </div>
           <CardTitle className="text-2xl font-bold">PPN Tegalsari</CardTitle>
           <CardDescription>
-            Sistem Pendataan Hasil Bongkar Kapal — PPN Tegalsari
+            Sistem Pendataan Hasil Bongkar Kapal<br />
+            <span className="text-[10px] text-muted-foreground/70">Pelabuhan Perikanan Nusantara Tegalsari — Kota Tegal</span>
           </CardDescription>
         </CardHeader>
         <CardContent>
