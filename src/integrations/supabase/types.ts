@@ -41,6 +41,33 @@ export type Database = {
         }
         Relationships: []
       }
+      chat_group_settings: {
+        Row: {
+          group_description: string | null
+          group_name: string
+          group_photo_url: string | null
+          id: string
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          group_description?: string | null
+          group_name?: string
+          group_photo_url?: string | null
+          id?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          group_description?: string | null
+          group_name?: string
+          group_photo_url?: string | null
+          id?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: []
+      }
       chat_messages: {
         Row: {
           created_at: string

@@ -8,21 +8,34 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
-import { Send, Users, MessageCircle, Loader2, ArrowLeft, Search, Image as ImageIcon, Smile, X, MapPin, Phone, Mail, Calendar, MoreVertical, Pencil, Trash2, Check, Settings } from 'lucide-react';
+import { Send, Users, MessageCircle, Loader2, ArrowLeft, Search, Image as ImageIcon, Smile, X, MapPin, Phone, Mail, Calendar, MoreVertical, Pencil, Trash2, Check, Settings, Camera } from 'lucide-react';
 import { format, isToday, isYesterday, differenceInMinutes } from 'date-fns';
 import { id as idLocale } from 'date-fns/locale';
 import { toast } from 'sonner';
 import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
 
-// Sticker images
+// Sticker images - Group Ikan (10)
 import stickerMantap from '@/assets/stickers/fish-mantap.jpg';
-import stickerGas from '@/assets/stickers/squid-gas.jpg';
 import stickerWkwk from '@/assets/stickers/shark-wkwk.jpg';
+import stickerAsik from '@/assets/stickers/pufferfish-asik.png';
+import stickerSiap from '@/assets/stickers/tuna-siap.png';
+import stickerSantai from '@/assets/stickers/seahorse-santai.png';
+import stickerWow from '@/assets/stickers/ray-wow.png';
+import stickerWaduh from '@/assets/stickers/eel-waduh.png';
+import stickerOke from '@/assets/stickers/angelfish-oke.png';
+
+// Sticker images - Group Laut (10)
+import stickerGas from '@/assets/stickers/squid-gas.jpg';
 import stickerSemangat from '@/assets/stickers/whale-semangat.jpg';
 import stickerKeren from '@/assets/stickers/octopus-keren.jpg';
 import stickerNgopi from '@/assets/stickers/crab-ngopi.jpg';
 import stickerWah from '@/assets/stickers/dolphin-wah.jpg';
 import stickerTop from '@/assets/stickers/lobster-top.jpg';
+import stickerSabar from '@/assets/stickers/turtle-sabar.png';
+import stickerBisa from '@/assets/stickers/starfish-bisa.png';
+import stickerHehe from '@/assets/stickers/jellyfish-hehe.png';
+import stickerYeay from '@/assets/stickers/seal-yeay.png';
 
 interface ChatMessage {
   id: string;
@@ -49,7 +62,14 @@ interface UserProfile {
   last_seen: string | null;
 }
 
-// Sticker groups
+interface GroupSettings {
+  id: string;
+  group_name: string;
+  group_photo_url: string | null;
+  group_description: string;
+}
+
+// Sticker groups - 10 per group, all image-based
 const STICKER_GROUPS = [
   {
     id: 'ikan',
@@ -57,6 +77,14 @@ const STICKER_GROUPS = [
     stickers: [
       { id: 'ikan_mantap', img: stickerMantap, text: 'Mantap!' },
       { id: 'hiu_wkwk', img: stickerWkwk, text: 'Wkwk' },
+      { id: 'buntal_asik', img: stickerAsik, text: 'Asik!' },
+      { id: 'tuna_siap', img: stickerSiap, text: 'Siap!' },
+      { id: 'kuda_santai', img: stickerSantai, text: 'Santai~' },
+      { id: 'pari_wow', img: stickerWow, text: 'Wow!' },
+      { id: 'belut_waduh', img: stickerWaduh, text: 'Waduh!' },
+      { id: 'angel_oke', img: stickerOke, text: 'Oke!' },
+      { id: 'sabar_turtle', img: stickerSabar, text: 'Sabar!' },
+      { id: 'bisa_star', img: stickerBisa, text: 'Bisa!' },
     ],
   },
   {
@@ -67,14 +95,12 @@ const STICKER_GROUPS = [
       { id: 'paus_semangat', img: stickerSemangat, text: 'Semangat!' },
       { id: 'gurita_keren', img: stickerKeren, text: 'Keren!' },
       { id: 'lumba_wah', img: stickerWah, text: 'Wah!' },
-    ],
-  },
-  {
-    id: 'santai',
-    label: '🦀 Santai',
-    stickers: [
       { id: 'kepiting_ngopi', img: stickerNgopi, text: 'Ngopi Dulu' },
       { id: 'lobster_top', img: stickerTop, text: 'Top!' },
+      { id: 'ubur_hehe', img: stickerHehe, text: 'Hehe~' },
+      { id: 'anjing_laut_yeay', img: stickerYeay, text: 'Yeay!' },
+      { id: 'buntal_asik2', img: stickerAsik, text: 'Asik!' },
+      { id: 'pari_wow2', img: stickerWow, text: 'Wow!' },
     ],
   },
   {
@@ -84,8 +110,7 @@ const STICKER_GROUPS = [
       { id: 'e_haha', text: '😂' }, { id: 'e_love', text: '❤️' }, { id: 'e_fire', text: '🔥' },
       { id: 'e_clap', text: '👏' }, { id: 'e_ok', text: '👍' }, { id: 'e_star', text: '⭐' },
       { id: 'e_100', text: '💯' }, { id: 'e_party', text: '🎉' }, { id: 'e_muscle', text: '💪' },
-      { id: 'e_rocket', text: '🚀' }, { id: 'e_trophy', text: '🏆' }, { id: 'e_crown', text: '👑' },
-      { id: 'e_cool', text: '😎' }, { id: 'e_wink', text: '😉' }, { id: 'e_joy', text: '🤩' },
+      { id: 'e_rocket', text: '🚀' },
     ],
   },
   {
@@ -95,8 +120,7 @@ const STICKER_GROUPS = [
       { id: 'el_fish', text: '🐟' }, { id: 'el_squid', text: '🦑' }, { id: 'el_shark', text: '🦈' },
       { id: 'el_whale', text: '🐋' }, { id: 'el_dolphin', text: '🐬' }, { id: 'el_octopus', text: '🐙' },
       { id: 'el_crab', text: '🦀' }, { id: 'el_lobster', text: '🦞' }, { id: 'el_shrimp', text: '🦐' },
-      { id: 'el_wave', text: '🌊' }, { id: 'el_boat', text: '⛵' }, { id: 'el_anchor', text: '⚓' },
-      { id: 'el_shell', text: '🐚' }, { id: 'el_tfish', text: '🐠' }, { id: 'el_blowfish', text: '🐡' },
+      { id: 'el_wave', text: '🌊' },
     ],
   },
   {
@@ -106,8 +130,7 @@ const STICKER_GROUPS = [
       { id: 'ek_salute', text: '🫡' }, { id: 'ek_think', text: '🤔' }, { id: 'ek_write', text: '✍️' },
       { id: 'ek_check', text: '✅' }, { id: 'ek_clock', text: '⏰' }, { id: 'ek_chart', text: '📊' },
       { id: 'ek_target', text: '🎯' }, { id: 'ek_bulb', text: '💡' }, { id: 'ek_gear', text: '⚙️' },
-      { id: 'ek_pin', text: '📌' }, { id: 'ek_mega', text: '📣' }, { id: 'ek_hand', text: '🤝' },
-      { id: 'ek_pray', text: '🙏' }, { id: 'ek_eye', text: '👀' }, { id: 'ek_done', text: '🏁' },
+      { id: 'ek_pin', text: '📌' },
     ],
   },
   {
@@ -115,21 +138,9 @@ const STICKER_GROUPS = [
     label: '😮 Reaksi',
     stickers: [
       { id: 'er_shock', text: '😱' }, { id: 'er_cry', text: '😭' }, { id: 'er_angry', text: '😤' },
-      { id: 'er_sleepy', text: '😴' }, { id: 'er_sick', text: '🤢' }, { id: 'er_ghost', text: '👻' },
-      { id: 'er_skull', text: '💀' }, { id: 'er_clown', text: '🤡' }, { id: 'er_sweat', text: '😅' },
-      { id: 'er_shh', text: '🤫' }, { id: 'er_nerd', text: '🤓' }, { id: 'er_devil', text: '😈' },
-      { id: 'er_angel', text: '😇' }, { id: 'er_hmm', text: '🧐' }, { id: 'er_uwu', text: '🥺' },
-    ],
-  },
-  {
-    id: 'emoji_makan',
-    label: '🍜 Makan',
-    stickers: [
-      { id: 'em_rice', text: '🍚' }, { id: 'em_noodle', text: '🍜' }, { id: 'em_coffee', text: '☕' },
-      { id: 'em_pizza', text: '🍕' }, { id: 'em_burger', text: '🍔' }, { id: 'em_sushi', text: '🍣' },
-      { id: 'em_cake', text: '🎂' }, { id: 'em_icecream', text: '🍦' }, { id: 'em_drink', text: '🧃' },
-      { id: 'em_meat', text: '🍖' }, { id: 'em_egg', text: '🍳' }, { id: 'em_chili', text: '🌶️' },
-      { id: 'em_coconut', text: '🥥' }, { id: 'em_mango', text: '🥭' }, { id: 'em_banana', text: '🍌' },
+      { id: 'er_sleepy', text: '😴' }, { id: 'er_ghost', text: '👻' }, { id: 'er_skull', text: '💀' },
+      { id: 'er_clown', text: '🤡' }, { id: 'er_sweat', text: '😅' }, { id: 'er_shh', text: '🤫' },
+      { id: 'er_nerd', text: '🤓' },
     ],
   },
 ];
@@ -152,7 +163,6 @@ const formatChatMessage = (text: string): React.ReactNode => {
   lines.forEach((line, i) => {
     const trimmed = line.trim();
     
-    // Numbered list: "1. text" or "1) text"
     const numMatch = trimmed.match(/^(\d+)[.)]\s+(.+)/);
     if (numMatch) {
       elements.push(
@@ -164,7 +174,6 @@ const formatChatMessage = (text: string): React.ReactNode => {
       return;
     }
     
-    // Bullet list: "- text" or "• text" or "* text"
     const bulletMatch = trimmed.match(/^[-•*]\s+(.+)/);
     if (bulletMatch) {
       elements.push(
@@ -176,7 +185,6 @@ const formatChatMessage = (text: string): React.ReactNode => {
       return;
     }
     
-    // Regular line
     if (trimmed === '') {
       elements.push(<span key={i} className="block h-2" />);
     } else {
@@ -185,6 +193,19 @@ const formatChatMessage = (text: string): React.ReactNode => {
   });
   
   return <>{elements}</>;
+};
+
+// Request browser notification permission
+const requestNotificationPermission = async () => {
+  if ('Notification' in window && Notification.permission === 'default') {
+    await Notification.requestPermission();
+  }
+};
+
+const showBrowserNotification = (title: string, body: string, icon?: string) => {
+  if ('Notification' in window && Notification.permission === 'granted' && document.hidden) {
+    new Notification(title, { body, icon: icon || '/favicon.ico', tag: 'chat-msg' });
+  }
 };
 
 export const ChatPanel: React.FC = () => {
@@ -206,16 +227,23 @@ export const ChatPanel: React.FC = () => {
   const [editingMessage, setEditingMessage] = useState<ChatMessage | null>(null);
   const [editText, setEditText] = useState('');
   const [showGroupSettings, setShowGroupSettings] = useState(false);
-  const [groupName, setGroupName] = useState('Grup Semua Petugas');
+  const [groupSettings, setGroupSettings] = useState<GroupSettings | null>(null);
+  const [editGroupName, setEditGroupName] = useState('');
+  const [editGroupDesc, setEditGroupDesc] = useState('');
+  const [uploadingGroupPhoto, setUploadingGroupPhoto] = useState(false);
   const [typingUsers, setTypingUsers] = useState<string[]>([]);
   const scrollRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const groupPhotoInputRef = useRef<HTMLInputElement>(null);
   const selectedUserRef = useRef<string | null>(null);
   const typingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => { selectedUserRef.current = selectedUser; }, [selectedUser]);
 
-  // Typing indicator: update typing_at when typing
+  // Request notification permission on mount
+  useEffect(() => { requestNotificationPermission(); }, []);
+
+  // Typing indicator
   const handleTyping = useCallback(() => {
     if (!user) return;
     const target = selectedUser === null ? 'group' : selectedUser;
@@ -225,22 +253,6 @@ export const ChatPanel: React.FC = () => {
       supabase.from('profiles').update({ typing_at: null, typing_to: null } as any).eq('user_id', user.id).then();
     }, 3000);
   }, [user, selectedUser]);
-
-  // Check typing status of other users
-  useEffect(() => {
-    const interval = setInterval(() => {
-      const now = new Date();
-      const typing = users.filter(u => {
-        if (u.user_id === user?.id) return false;
-        const profile = u as any;
-        if (!profile.last_seen) return false;
-        // We check typing_at from the profiles data
-        return false; // Will be updated via realtime
-      });
-      setTypingUsers(typing.map(u => u.user_id));
-    }, 2000);
-    return () => clearInterval(interval);
-  }, [users, user?.id]);
 
   const userMap = useMemo(() => {
     const map = new Map<string, UserProfile>();
@@ -263,6 +275,12 @@ export const ChatPanel: React.FC = () => {
     return differenceInMinutes(new Date(), new Date(u.last_seen)) < 5;
   }, [userMap]);
 
+  // Fetch group settings
+  const fetchGroupSettings = useCallback(async () => {
+    const { data } = await supabase.from('chat_group_settings').select('*').limit(1).maybeSingle();
+    if (data) setGroupSettings(data as any);
+  }, []);
+
   const fetchUsers = useCallback(async () => {
     const { data } = await supabase
       .from('profiles')
@@ -270,7 +288,6 @@ export const ChatPanel: React.FC = () => {
     const profiles = (data || []) as (UserProfile & { typing_at?: string; typing_to?: string })[];
     setUsers(profiles as UserProfile[]);
     
-    // Update typing users
     const now = new Date();
     const typingNow = profiles.filter(u => {
       if (u.user_id === user?.id) return false;
@@ -282,7 +299,7 @@ export const ChatPanel: React.FC = () => {
       return u.typing_to === user?.id;
     });
     setTypingUsers(typingNow.map(u => u.user_id));
-  }, []);
+  }, [user?.id]);
 
   const fetchMessages = useCallback(async () => {
     if (!user) return;
@@ -298,14 +315,14 @@ export const ChatPanel: React.FC = () => {
     setLoading(false);
   }, [user, selectedUser]);
 
-  useEffect(() => { fetchUsers(); const i = setInterval(fetchUsers, 5000); return () => clearInterval(i); }, [fetchUsers]);
+  useEffect(() => { fetchUsers(); fetchGroupSettings(); const i = setInterval(fetchUsers, 5000); return () => clearInterval(i); }, [fetchUsers, fetchGroupSettings]);
   useEffect(() => { fetchMessages(); }, [fetchMessages]);
 
-  // Realtime
+  // Realtime with notifications
   useEffect(() => {
     if (!user) return;
     const channel = supabase
-      .channel('chat-realtime-v3')
+      .channel('chat-realtime-v4')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'chat_messages' }, (payload) => {
         if (payload.eventType === 'INSERT') {
           const msg = payload.new as ChatMessage;
@@ -317,6 +334,17 @@ export const ChatPanel: React.FC = () => {
               setMessages(prev => [...prev, msg]);
             }
           }
+          // Show browser notification for incoming messages
+          if (msg.sender_id !== user.id) {
+            const senderName = userMap.get(msg.sender_id)?.display_name || 'Petugas';
+            const sticker = getStickerFromMessage(msg.message);
+            const body = sticker ? `${senderName} mengirim stiker` : msg.message?.substring(0, 100) || 'Foto';
+            showBrowserNotification(
+              msg.is_group ? `💬 Grup PPN Tegalsari` : `💬 ${senderName}`,
+              body,
+              userMap.get(msg.sender_id)?.avatar_url || undefined
+            );
+          }
         } else if (payload.eventType === 'UPDATE') {
           const msg = payload.new as ChatMessage;
           setMessages(prev => prev.map(m => m.id === msg.id ? msg : m));
@@ -327,7 +355,7 @@ export const ChatPanel: React.FC = () => {
       })
       .subscribe();
     return () => { supabase.removeChannel(channel); };
-  }, [user]);
+  }, [user, userMap]);
 
   useEffect(() => {
     requestAnimationFrame(() => {
@@ -348,6 +376,8 @@ export const ChatPanel: React.FC = () => {
         image_url: imageUrl || null,
       } as any);
       if (!messageText) setNewMessage('');
+      // Clear typing
+      supabase.from('profiles').update({ typing_at: null, typing_to: null } as any).eq('user_id', user.id).then();
     } catch (err) {
       console.error('Send error:', err);
     } finally {
@@ -403,6 +433,49 @@ export const ChatPanel: React.FC = () => {
     }
   };
 
+  // Group photo upload
+  const handleGroupPhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !user || !groupSettings) return;
+    setUploadingGroupPhoto(true);
+    try {
+      const ext = file.name.split('.').pop() || 'jpg';
+      const filePath = `group/${Date.now()}.${ext}`;
+      const { error: uploadError } = await supabase.storage.from('chat-attachments').upload(filePath, file, { contentType: file.type });
+      if (uploadError) throw uploadError;
+      const { data: urlData } = supabase.storage.from('chat-attachments').getPublicUrl(filePath);
+      await supabase.from('chat_group_settings').update({
+        group_photo_url: urlData.publicUrl,
+        updated_by: user.id,
+        updated_at: new Date().toISOString(),
+      } as any).eq('id', groupSettings.id);
+      setGroupSettings(prev => prev ? { ...prev, group_photo_url: urlData.publicUrl } : prev);
+      toast.success('Foto grup berhasil diubah');
+    } catch (err: any) {
+      toast.error(err.message || 'Gagal upload foto grup');
+    } finally {
+      setUploadingGroupPhoto(false);
+      if (groupPhotoInputRef.current) groupPhotoInputRef.current.value = '';
+    }
+  };
+
+  const handleSaveGroupSettings = async () => {
+    if (!groupSettings) return;
+    try {
+      await supabase.from('chat_group_settings').update({
+        group_name: editGroupName || groupSettings.group_name,
+        group_description: editGroupDesc,
+        updated_by: user?.id,
+        updated_at: new Date().toISOString(),
+      } as any).eq('id', groupSettings.id);
+      setGroupSettings(prev => prev ? { ...prev, group_name: editGroupName || prev.group_name, group_description: editGroupDesc } : prev);
+      setShowGroupSettings(false);
+      toast.success('Pengaturan grup disimpan');
+    } catch (err: any) {
+      toast.error('Gagal menyimpan pengaturan grup');
+    }
+  };
+
   const handleProfileClick = useCallback((userId: string) => {
     const u = userMap.get(userId);
     if (u) { setProfileUser(u); setShowProfileDialog(true); }
@@ -439,13 +512,15 @@ export const ChatPanel: React.FC = () => {
     return format(d, 'dd MMMM yyyy', { locale: idLocale });
   }, []);
 
+  const groupName = groupSettings?.group_name || 'Grup Semua Petugas';
+
   return (
     <>
       <div className="flex h-[calc(100vh-120px)] sm:h-[600px] border rounded-2xl overflow-hidden bg-card shadow-lg">
         {/* Sidebar */}
         <div className={`${showSidebar ? 'flex' : 'hidden'} sm:flex w-full sm:w-72 border-r bg-muted/20 flex-col`}>
           <div className="p-3 border-b space-y-2">
-            <p className="text-sm font-bold text-foreground">💬 Chat Petugas</p>
+            <p className="text-sm font-bold text-foreground">💬 Chat Petugas PPN</p>
             <div className="relative">
               <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
               <Input placeholder="Cari petugas..." value={userSearch} onChange={e => setUserSearch(e.target.value)} className="h-8 pl-8 text-xs" />
@@ -454,12 +529,21 @@ export const ChatPanel: React.FC = () => {
           <ScrollArea className="flex-1">
             <button onClick={() => selectChat(null)}
               className={`w-full p-3 text-left flex items-center gap-3 hover:bg-muted/50 transition-colors ${selectedUser === null ? 'bg-primary/10' : ''}`}>
-              <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
-                <Users className="w-5 h-5 text-primary" />
-              </div>
+              {groupSettings?.group_photo_url ? (
+                <Avatar className="w-10 h-10 shrink-0">
+                  <AvatarImage src={groupSettings.group_photo_url} />
+                  <AvatarFallback><Users className="w-5 h-5 text-primary" /></AvatarFallback>
+                </Avatar>
+              ) : (
+                <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
+                  <Users className="w-5 h-5 text-primary" />
+                </div>
+              )}
               <div className="min-w-0 flex-1">
                 <p className="font-semibold text-sm truncate">{groupName}</p>
-                <p className="text-[11px] text-muted-foreground">Pesan grup petugas</p>
+                <p className="text-[11px] text-muted-foreground truncate">
+                  {groupSettings?.group_description || 'Pesan grup petugas'}
+                </p>
               </div>
             </button>
             <div className="px-3 py-1.5">
@@ -481,7 +565,9 @@ export const ChatPanel: React.FC = () => {
                 </div>
                 <div className="min-w-0 flex-1">
                   <p className="font-medium text-sm truncate">{u.display_name || u.username || 'No Name'}</p>
-                  {u.username && <p className="text-[11px] text-primary font-mono">@{u.username}</p>}
+                  <p className="text-[10px] text-muted-foreground">
+                    {isOnline(u.user_id) ? '🟢 Online' : u.last_seen ? `${format(new Date(u.last_seen), 'dd MMM HH:mm', { locale: idLocale })}` : 'Offline'}
+                  </p>
                 </div>
               </button>
             ))}
@@ -497,15 +583,26 @@ export const ChatPanel: React.FC = () => {
             </Button>
             {selectedUser === null ? (
               <div className="flex items-center gap-2 flex-1">
-                <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
-                  <Users className="w-4 h-4 text-primary" />
-                </div>
+                {groupSettings?.group_photo_url ? (
+                  <Avatar className="w-8 h-8">
+                    <AvatarImage src={groupSettings.group_photo_url} />
+                    <AvatarFallback><Users className="w-4 h-4 text-primary" /></AvatarFallback>
+                  </Avatar>
+                ) : (
+                  <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
+                    <Users className="w-4 h-4 text-primary" />
+                  </div>
+                )}
                 <div className="flex-1">
                   <p className="text-sm font-bold">{groupName}</p>
                   <p className="text-[10px] text-muted-foreground">{users.length} anggota</p>
                 </div>
                 {isAdmin && (
-                  <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setShowGroupSettings(true)}>
+                  <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => {
+                    setEditGroupName(groupSettings?.group_name || '');
+                    setEditGroupDesc(groupSettings?.group_description || '');
+                    setShowGroupSettings(true);
+                  }}>
                     <Settings className="w-4 h-4" />
                   </Button>
                 )}
@@ -521,7 +618,7 @@ export const ChatPanel: React.FC = () => {
                     <span className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-success rounded-full border-2 border-card" />
                   )}
                 </div>
-              <div>
+                <div>
                   <p className="text-sm font-bold">{getUserName(selectedUser)}</p>
                   <p className="text-[10px] text-muted-foreground">
                     {isOnline(selectedUser) ? '🟢 Online' : (() => {
@@ -792,14 +889,41 @@ export const ChatPanel: React.FC = () => {
           <DialogHeader>
             <DialogTitle>Pengaturan Grup</DialogTitle>
           </DialogHeader>
-          <div className="space-y-3">
+          <div className="space-y-4">
+            {/* Group Photo */}
+            <div className="flex flex-col items-center gap-2">
+              <div className="relative">
+                {groupSettings?.group_photo_url ? (
+                  <Avatar className="w-20 h-20 border-2 border-primary/20">
+                    <AvatarImage src={groupSettings.group_photo_url} />
+                    <AvatarFallback><Users className="w-8 h-8 text-primary" /></AvatarFallback>
+                  </Avatar>
+                ) : (
+                  <div className="w-20 h-20 rounded-full bg-primary/10 flex items-center justify-center border-2 border-dashed border-primary/30">
+                    <Users className="w-8 h-8 text-primary/50" />
+                  </div>
+                )}
+                <input ref={groupPhotoInputRef} type="file" accept="image/*" onChange={handleGroupPhotoUpload} className="hidden" />
+                <Button variant="outline" size="icon" className="absolute -bottom-1 -right-1 h-7 w-7 rounded-full"
+                  onClick={() => groupPhotoInputRef.current?.click()} disabled={uploadingGroupPhoto}>
+                  {uploadingGroupPhoto ? <Loader2 className="w-3 h-3 animate-spin" /> : <Camera className="w-3 h-3" />}
+                </Button>
+              </div>
+              <p className="text-[10px] text-muted-foreground">Klik untuk ubah foto grup</p>
+            </div>
+
             <div className="space-y-1.5">
               <Label className="text-xs">Nama Grup</Label>
-              <Input value={groupName} onChange={e => setGroupName(e.target.value)} />
+              <Input value={editGroupName} onChange={e => setEditGroupName(e.target.value)} />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs">Deskripsi Grup</Label>
+              <Textarea value={editGroupDesc} onChange={e => setEditGroupDesc(e.target.value)}
+                placeholder="Tulis deskripsi grup..." rows={3} className="resize-none" />
             </div>
             <div className="space-y-1.5">
               <Label className="text-xs">Anggota ({users.length})</Label>
-              <div className="max-h-[200px] overflow-y-auto space-y-1">
+              <div className="max-h-[150px] overflow-y-auto space-y-1">
                 {users.map(u => (
                   <div key={u.user_id} className="flex items-center gap-2 p-1.5 rounded-lg bg-muted/30">
                     <Avatar className="w-6 h-6">
@@ -814,9 +938,8 @@ export const ChatPanel: React.FC = () => {
             </div>
           </div>
           <DialogFooter>
-            <Button onClick={() => { setShowGroupSettings(false); toast.success('Pengaturan grup disimpan'); }}>
-              Simpan
-            </Button>
+            <Button variant="outline" onClick={() => setShowGroupSettings(false)}>Batal</Button>
+            <Button onClick={handleSaveGroupSettings}>Simpan</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

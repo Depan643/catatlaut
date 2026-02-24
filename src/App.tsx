@@ -20,7 +20,7 @@ import ViewProfile from "./pages/ViewProfile";
 import NotFound from "./pages/NotFound";
 
 const ACCENT_COLORS: Record<string, { light: string; dark: string }> = {
-  blue: { light: '210 80% 35%', dark: '205 85% 55%' },
+  blue: { light: '215 75% 28%', dark: '205 85% 55%' },
   green: { light: '150 60% 35%', dark: '150 60% 45%' },
   purple: { light: '270 60% 45%', dark: '270 60% 55%' },
   orange: { light: '25 90% 45%', dark: '25 90% 55%' },
