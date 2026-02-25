@@ -78,12 +78,16 @@ export const KapalPhotoManager: React.FC<KapalPhotoManagerProps> = ({ kapalId })
 
       if (error) throw error;
 
-      const photoItems: PhotoItem[] = (data || [])
-        .filter(f => !f.id?.startsWith('.'))
-        .map(f => ({
-          name: f.name,
-          url: supabase.storage.from('kapal-photos').getPublicUrl(`${folderPath}/${f.name}`).data.publicUrl,
-        }));
+      // Use signed URLs since bucket is private
+      const photoItems: PhotoItem[] = [];
+      for (const f of (data || []).filter(f => !f.id?.startsWith('.'))) {
+        const { data: signedData, error: signedError } = await supabase.storage
+          .from('kapal-photos')
+          .createSignedUrl(`${folderPath}/${f.name}`, 3600); // 1 hour
+        if (!signedError && signedData?.signedUrl) {
+          photoItems.push({ name: f.name, url: signedData.signedUrl });
+        }
+      }
 
       setPhotos(photoItems);
     } catch (err) {

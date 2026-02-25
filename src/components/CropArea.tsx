@@ -1,6 +1,7 @@
 import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
-import { Camera, Loader2, Move } from 'lucide-react';
+import { Camera, Loader2, Move, ZoomIn, ZoomOut } from 'lucide-react';
+import { Slider } from '@/components/ui/slider';
 
 interface CropAreaProps {
   imageSrc: string | null;
@@ -20,7 +21,6 @@ export const CropArea: React.FC<CropAreaProps> = ({ imageSrc, imgRef, onUpload, 
   const [baseScale, setBaseScale] = useState(1);
   const containerRef = useRef<HTMLDivElement>(null);
 
-  // Touch tracking
   const touchState = useRef<{
     lastDist: number;
     lastCenter: { x: number; y: number };
@@ -45,6 +45,7 @@ export const CropArea: React.FC<CropAreaProps> = ({ imageSrc, imgRef, onUpload, 
   const handleImageLoad = useCallback(() => {
     if (!imgRef.current) return;
     const { naturalWidth, naturalHeight } = imgRef.current;
+    // Scale so the image COVERS the circle (use max instead of min)
     const bs = CONTAINER_SIZE / Math.min(naturalWidth, naturalHeight);
     setBaseScale(bs);
     setImgLoaded(true);
@@ -52,7 +53,7 @@ export const CropArea: React.FC<CropAreaProps> = ({ imageSrc, imgRef, onUpload, 
 
   // --- Pointer (mouse) drag ---
   const handlePointerDown = useCallback((e: React.PointerEvent) => {
-    if (e.pointerType === 'touch') return; // handled by touch events
+    if (e.pointerType === 'touch') return;
     touchState.current.dragging = true;
     touchState.current.lastPos = { x: e.clientX, y: e.clientY };
     (e.target as HTMLElement).setPointerCapture(e.pointerId);
@@ -102,10 +103,8 @@ export const CropArea: React.FC<CropAreaProps> = ({ imageSrc, imgRef, onUpload, 
       const dist = getTouchDist(e.touches[0], e.touches[1]);
       const center = getTouchCenter(e.touches[0], e.touches[1]);
       const ratio = dist / touchState.current.lastDist;
-      const newScale = Math.max(1, Math.min(3, touchState.current.lastScale * ratio));
+      const newScale = Math.max(0.5, Math.min(4, touchState.current.lastScale * ratio));
       setScale(newScale);
-
-      // Pan with center movement
       const dx = center.x - touchState.current.lastCenter.x;
       const dy = center.y - touchState.current.lastCenter.y;
       touchState.current.lastCenter = center;
@@ -130,10 +129,9 @@ export const CropArea: React.FC<CropAreaProps> = ({ imageSrc, imgRef, onUpload, 
     }
   }, []);
 
-  // Mouse wheel zoom
   const handleWheel = useCallback((e: React.WheelEvent) => {
     e.preventDefault();
-    setScale(prev => Math.max(1, Math.min(3, prev - e.deltaY * 0.002)));
+    setScale(prev => Math.max(0.5, Math.min(4, prev - e.deltaY * 0.002)));
   }, []);
 
   const totalScale = baseScale * scale;
@@ -168,9 +166,22 @@ export const CropArea: React.FC<CropAreaProps> = ({ imageSrc, imgRef, onUpload, 
                 height: imgH,
                 left: (CONTAINER_SIZE - imgW) / 2 + offsetX,
                 top: (CONTAINER_SIZE - imgH) / 2 + offsetY,
-                objectFit: 'contain',
               }}
             />
+          </div>
+
+          {/* Zoom slider */}
+          <div className="w-full max-w-[256px] flex items-center gap-2">
+            <ZoomOut className="w-4 h-4 text-muted-foreground shrink-0" />
+            <Slider
+              value={[scale * 100]}
+              onValueChange={([v]) => setScale(v / 100)}
+              min={50}
+              max={400}
+              step={5}
+              className="flex-1"
+            />
+            <ZoomIn className="w-4 h-4 text-muted-foreground shrink-0" />
           </div>
           <p className="text-xs text-muted-foreground text-center">
             Zoom: {Math.round(scale * 100)}%

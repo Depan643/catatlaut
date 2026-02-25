@@ -602,7 +602,7 @@ const Admin = () => {
 
       <main className="container py-4 pb-24 max-w-4xl mx-auto">
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="w-full h-12 p-1 bg-muted rounded-xl mb-4 grid grid-cols-5">
+          <TabsList className="w-full h-12 p-1 bg-muted rounded-xl mb-4 grid grid-cols-6">
             <TabsTrigger value="overview" className="text-[10px] sm:text-xs gap-1 data-[state=active]:bg-card">
               <BarChart3 className="w-3.5 h-3.5" /> <span className="hidden sm:inline">Overview</span>
             </TabsTrigger>
@@ -617,6 +617,9 @@ const Admin = () => {
             </TabsTrigger>
             <TabsTrigger value="logs" className="text-[10px] sm:text-xs gap-1 data-[state=active]:bg-card">
               <Activity className="w-3.5 h-3.5" /> <span className="hidden sm:inline">Logs</span>
+            </TabsTrigger>
+            <TabsTrigger value="database" className="text-[10px] sm:text-xs gap-1 data-[state=active]:bg-card">
+              <Hash className="w-3.5 h-3.5" /> <span className="hidden sm:inline">Database</span>
             </TabsTrigger>
           </TabsList>
 
@@ -1339,6 +1342,139 @@ const Admin = () => {
                 </div>
               )}
             </div>
+          </TabsContent>
+
+          {/* === DATABASE TAB === */}
+          <TabsContent value="database" className="space-y-4">
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-sm font-bold flex items-center gap-2">
+                  <Hash className="w-4 h-4 text-primary" /> Struktur Database
+                </CardTitle>
+                <CardDescription className="text-xs">Tabel dan kolom yang digunakan aplikasi</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {[
+                  {
+                    name: 'profiles', icon: '👤', desc: 'Data profil pengguna',
+                    stats: `${users.length} baris`,
+                    columns: [
+                      { name: 'user_id', type: 'uuid', desc: 'ID pengguna' },
+                      { name: 'display_name', type: 'text', desc: 'Nama tampilan' },
+                      { name: 'email', type: 'text', desc: 'Email' },
+                      { name: 'username', type: 'text', desc: 'Username unik' },
+                      { name: 'avatar_url', type: 'text', desc: 'URL foto profil' },
+                      { name: 'phone', type: 'text', desc: 'Nomor telepon' },
+                      { name: 'location', type: 'text', desc: 'Lokasi' },
+                      { name: 'last_seen', type: 'timestamptz', desc: 'Terakhir online' },
+                    ]
+                  },
+                  {
+                    name: 'kapal_data', icon: '🚢', desc: 'Data pendataan kapal',
+                    stats: `${kapalData.length} baris`,
+                    columns: [
+                      { name: 'id', type: 'uuid', desc: 'ID kapal' },
+                      { name: 'user_id', type: 'uuid', desc: 'ID petugas pendata' },
+                      { name: 'nama_kapal', type: 'text', desc: 'Nama kapal' },
+                      { name: 'jenis_pendataan', type: 'text', desc: 'ikan / cumi' },
+                      { name: 'tanggal', type: 'timestamptz', desc: 'Tanggal pendataan' },
+                      { name: 'tanda_selar_gt', type: 'text', desc: 'GT kapal' },
+                      { name: 'tanda_selar_no', type: 'text', desc: 'Nomor selar' },
+                      { name: 'tanda_selar_huruf', type: 'text', desc: 'Huruf selar' },
+                      { name: 'alat_tangkap', type: 'text', desc: 'Alat tangkap' },
+                      { name: 'posisi_dermaga', type: 'text', desc: 'Posisi dermaga' },
+                      { name: 'done_pipp', type: 'boolean', desc: 'Status PIPP' },
+                      { name: 'notes', type: 'text', desc: 'Catatan' },
+                    ]
+                  },
+                  {
+                    name: 'entries', icon: '📦', desc: 'Data entri berat ikan/cumi',
+                    stats: `${entries.length} baris`,
+                    columns: [
+                      { name: 'kapal_id', type: 'uuid', desc: 'FK → kapal_data' },
+                      { name: 'jenis', type: 'text', desc: 'Jenis ikan/cumi' },
+                      { name: 'berat', type: 'numeric', desc: 'Berat (kg)' },
+                      { name: 'waktu_input', type: 'timestamptz', desc: 'Waktu input' },
+                    ]
+                  },
+                  {
+                    name: 'chat_messages', icon: '💬', desc: 'Pesan chat',
+                    stats: '',
+                    columns: [
+                      { name: 'sender_id', type: 'uuid', desc: 'Pengirim' },
+                      { name: 'receiver_id', type: 'uuid', desc: 'Penerima (null=grup)' },
+                      { name: 'message', type: 'text', desc: 'Isi pesan' },
+                      { name: 'is_group', type: 'boolean', desc: 'Pesan grup' },
+                      { name: 'reply_to', type: 'uuid', desc: 'Balasan ke pesan' },
+                      { name: 'reactions', type: 'jsonb', desc: 'Reaksi emoji' },
+                      { name: 'read_at', type: 'timestamptz', desc: 'Dibaca' },
+                    ]
+                  },
+                  {
+                    name: 'user_roles', icon: '🛡️', desc: 'Role pengguna',
+                    stats: `${userRoles.length} baris`,
+                    columns: [
+                      { name: 'user_id', type: 'uuid', desc: 'ID pengguna' },
+                      { name: 'role', type: 'app_role', desc: 'admin / user' },
+                    ]
+                  },
+                  {
+                    name: 'activity_logs', icon: '📋', desc: 'Log aktivitas',
+                    stats: `${activityLogs.length}+ baris`,
+                    columns: [
+                      { name: 'user_id', type: 'uuid', desc: 'Pelaku' },
+                      { name: 'action', type: 'text', desc: 'Jenis aksi' },
+                      { name: 'details', type: 'jsonb', desc: 'Detail aksi' },
+                    ]
+                  },
+                ].map(table => (
+                  <div key={table.name} className="border rounded-xl overflow-hidden">
+                    <div className="p-3 bg-muted/30 flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <span className="text-lg">{table.icon}</span>
+                        <div>
+                          <p className="font-semibold text-sm font-mono">{table.name}</p>
+                          <p className="text-[10px] text-muted-foreground">{table.desc}</p>
+                        </div>
+                      </div>
+                      {table.stats && <Badge variant="secondary" className="text-[10px]">{table.stats}</Badge>}
+                    </div>
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead className="text-[10px] font-bold">Kolom</TableHead>
+                          <TableHead className="text-[10px] font-bold">Tipe</TableHead>
+                          <TableHead className="text-[10px] font-bold">Keterangan</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {table.columns.map(col => (
+                          <TableRow key={col.name}>
+                            <TableCell className="text-xs font-mono text-primary py-1.5">{col.name}</TableCell>
+                            <TableCell className="py-1.5"><Badge variant="outline" className="text-[9px] font-mono">{col.type}</Badge></TableCell>
+                            <TableCell className="text-xs text-muted-foreground py-1.5">{col.desc}</TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                ))}
+
+                <Card className="p-4 bg-primary/5 border-primary/20">
+                  <div className="flex items-start gap-3">
+                    <Shield className="w-5 h-5 text-primary mt-0.5 shrink-0" />
+                    <div>
+                      <p className="text-sm font-semibold">Keamanan</p>
+                      <ul className="text-xs text-muted-foreground mt-1 space-y-0.5">
+                        <li>• Semua tabel dilindungi RLS (Row-Level Security)</li>
+                        <li>• Petugas hanya akses data sendiri, Admin akses penuh</li>
+                        <li>• Storage: avatars (publik), kapal-photos (privat), chat-attachments (publik)</li>
+                      </ul>
+                    </div>
+                  </div>
+                </Card>
+              </CardContent>
+            </Card>
           </TabsContent>
         </Tabs>
       </main>
