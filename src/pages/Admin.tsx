@@ -18,8 +18,9 @@ import {
   Shield, Trash2, Eye, Calendar, RefreshCw, Download,
   TrendingUp, Anchor, AlertTriangle, Edit, Save,
   UserCheck, UserX, FileText, Clock, MapPin, Phone, Mail, Hash,
-  ChevronRight, ChevronDown, Filter, X
+  ChevronRight, ChevronDown, Filter, X, Fish
 } from 'lucide-react';
+import { AdminSpeciesManager } from '@/components/AdminSpeciesManager';
 import { format, subDays, isWithinInterval, startOfDay, endOfDay, isToday, isYesterday, startOfMonth, endOfMonth } from 'date-fns';
 import { id as idLocale } from 'date-fns/locale';
 import { toast } from 'sonner';
@@ -602,7 +603,7 @@ const Admin = () => {
 
       <main className="container py-4 pb-24 max-w-4xl mx-auto">
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="w-full h-12 p-1 bg-muted rounded-xl mb-4 grid grid-cols-6">
+          <TabsList className="w-full h-12 p-1 bg-muted rounded-xl mb-4 grid grid-cols-7">
             <TabsTrigger value="overview" className="text-[10px] sm:text-xs gap-1 data-[state=active]:bg-card">
               <BarChart3 className="w-3.5 h-3.5" /> <span className="hidden sm:inline">Overview</span>
             </TabsTrigger>
@@ -612,6 +613,9 @@ const Admin = () => {
             <TabsTrigger value="data" className="text-[10px] sm:text-xs gap-1 data-[state=active]:bg-card">
               <Ship className="w-3.5 h-3.5" /> <span className="hidden sm:inline">Data</span>
             </TabsTrigger>
+            <TabsTrigger value="species" className="text-[10px] sm:text-xs gap-1 data-[state=active]:bg-card">
+              <Fish className="w-3.5 h-3.5" /> <span className="hidden sm:inline">Ikan</span>
+            </TabsTrigger>
             <TabsTrigger value="roles" className="text-[10px] sm:text-xs gap-1 data-[state=active]:bg-card">
               <Shield className="w-3.5 h-3.5" /> <span className="hidden sm:inline">Roles</span>
             </TabsTrigger>
@@ -619,7 +623,7 @@ const Admin = () => {
               <Activity className="w-3.5 h-3.5" /> <span className="hidden sm:inline">Logs</span>
             </TabsTrigger>
             <TabsTrigger value="database" className="text-[10px] sm:text-xs gap-1 data-[state=active]:bg-card">
-              <Hash className="w-3.5 h-3.5" /> <span className="hidden sm:inline">Database</span>
+              <Hash className="w-3.5 h-3.5" /> <span className="hidden sm:inline">DB</span>
             </TabsTrigger>
           </TabsList>
 
@@ -1182,6 +1186,11 @@ const Admin = () => {
             {filteredKapal.length > 50 && (
               <p className="text-xs text-muted-foreground text-center">Menampilkan 50 dari {filteredKapal.length} data</p>
             )}
+          </TabsContent>
+
+          {/* === SPECIES TAB === */}
+          <TabsContent value="species" className="space-y-4">
+            <AdminSpeciesManager />
           </TabsContent>
 
           {/* === ROLES TAB - No moderator === */}

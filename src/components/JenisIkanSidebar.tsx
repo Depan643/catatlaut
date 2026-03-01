@@ -4,6 +4,7 @@ import { Input } from '@/components/ui/input';
 import { JENIS_IKAN } from '@/types';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
+import { useFishSpecies } from '@/hooks/useFishSpecies';
 
 interface JenisIkanSidebarProps {
   onSelect: (jenis: string) => void;
@@ -23,10 +24,17 @@ export const JenisIkanSidebar: React.FC<JenisIkanSidebarProps> = ({
   weighedJenis = new Set(),
 }) => {
   const [search, setSearch] = useState('');
+  const { species, loading } = useFishSpecies('ikan');
 
-  const filteredItems = JENIS_IKAN.filter((item) =>
+  // Use DB species if available, fallback to static list
+  const allItems = species.length > 0 ? species.map(s => s.nama_ikan) : [...JENIS_IKAN];
+
+  const filteredItems = allItems.filter((item) =>
     item.toLowerCase().includes(search.toLowerCase())
   );
+
+  // Map for showing latin names
+  const speciesMap = new Map(species.map(s => [s.nama_ikan, s]));
 
   if (collapsed) {
     return (
@@ -46,7 +54,6 @@ export const JenisIkanSidebar: React.FC<JenisIkanSidebarProps> = ({
 
   return (
     <div className="w-72 bg-card border-r border-border flex flex-col h-full">
-      {/* Header */}
       <div className="p-4 border-b border-border flex items-center justify-between">
         <h2 className="font-bold text-foreground">Pilih Jenis Ikan</h2>
         <button
@@ -57,7 +64,6 @@ export const JenisIkanSidebar: React.FC<JenisIkanSidebarProps> = ({
         </button>
       </div>
 
-      {/* Recent Items */}
       {recentItems.length > 0 && (
         <div className="p-3 border-b border-border">
           <div className="text-xs font-medium text-muted-foreground mb-2">Terakhir Digunakan</div>
@@ -81,7 +87,6 @@ export const JenisIkanSidebar: React.FC<JenisIkanSidebarProps> = ({
         </div>
       )}
 
-      {/* Search */}
       <div className="p-3 border-b border-border">
         <div className="relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
@@ -94,7 +99,6 @@ export const JenisIkanSidebar: React.FC<JenisIkanSidebarProps> = ({
         </div>
       </div>
 
-      {/* List */}
       <ScrollArea className="flex-1">
         <div className="p-2 space-y-0.5">
           {filteredItems.length === 0 ? (
@@ -104,6 +108,7 @@ export const JenisIkanSidebar: React.FC<JenisIkanSidebarProps> = ({
           ) : (
             filteredItems.map((item) => {
               const isWeighed = weighedJenis.has(item);
+              const sp = speciesMap.get(item);
               return (
                 <button
                   key={item}
@@ -118,10 +123,20 @@ export const JenisIkanSidebar: React.FC<JenisIkanSidebarProps> = ({
                         : "hover:bg-muted text-foreground"
                   )}
                 >
-                  <span className="truncate flex items-center gap-1.5">
-                    {isWeighed && <Check className="w-3 h-3 text-accent-foreground/70 shrink-0" />}
-                    {item}
-                  </span>
+                  <div className="truncate flex-1">
+                    <span className="flex items-center gap-1.5">
+                      {isWeighed && <Check className="w-3 h-3 text-accent-foreground/70 shrink-0" />}
+                      {item}
+                    </span>
+                    {sp?.nama_latin && (
+                      <span className={cn(
+                        "text-[10px] italic block mt-0.5",
+                        selectedJenis === item ? "text-primary-foreground/70" : "text-muted-foreground"
+                      )}>
+                        {sp.nama_latin}
+                      </span>
+                    )}
+                  </div>
                   {selectedJenis === item && (
                     <Check className="w-4 h-4 flex-shrink-0 ml-2" />
                   )}

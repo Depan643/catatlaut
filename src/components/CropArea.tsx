@@ -1,6 +1,6 @@
 import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
-import { Camera, Loader2, Move, ZoomIn, ZoomOut } from 'lucide-react';
+import { Camera, Loader2, Move, ZoomIn, ZoomOut, RotateCcw } from 'lucide-react';
 import { Slider } from '@/components/ui/slider';
 
 interface CropAreaProps {
@@ -11,7 +11,7 @@ interface CropAreaProps {
   onCancel: () => void;
 }
 
-const CONTAINER_SIZE = 256;
+const CONTAINER_SIZE = 280;
 
 export const CropArea: React.FC<CropAreaProps> = ({ imageSrc, imgRef, onUpload, uploading, onCancel }) => {
   const [offsetX, setOffsetX] = useState(0);
@@ -45,11 +45,18 @@ export const CropArea: React.FC<CropAreaProps> = ({ imageSrc, imgRef, onUpload, 
   const handleImageLoad = useCallback(() => {
     if (!imgRef.current) return;
     const { naturalWidth, naturalHeight } = imgRef.current;
-    // Scale so the image COVERS the circle (use max instead of min)
+    // Scale so the image COVERS the circle completely
     const bs = CONTAINER_SIZE / Math.min(naturalWidth, naturalHeight);
     setBaseScale(bs);
+    setScale(1);
     setImgLoaded(true);
   }, [imgRef]);
+
+  const handleReset = useCallback(() => {
+    setOffsetX(0);
+    setOffsetY(0);
+    setScale(1);
+  }, []);
 
   // --- Pointer (mouse) drag ---
   const handlePointerDown = useCallback((e: React.PointerEvent) => {
@@ -74,9 +81,8 @@ export const CropArea: React.FC<CropAreaProps> = ({ imageSrc, imgRef, onUpload, 
   }, []);
 
   // --- Touch: pinch-to-zoom + drag ---
-  const getTouchDist = (t1: React.Touch, t2: React.Touch) => {
-    return Math.hypot(t1.clientX - t2.clientX, t1.clientY - t2.clientY);
-  };
+  const getTouchDist = (t1: React.Touch, t2: React.Touch) =>
+    Math.hypot(t1.clientX - t2.clientX, t1.clientY - t2.clientY);
 
   const getTouchCenter = (t1: React.Touch, t2: React.Touch) => ({
     x: (t1.clientX + t2.clientX) / 2,
@@ -103,7 +109,7 @@ export const CropArea: React.FC<CropAreaProps> = ({ imageSrc, imgRef, onUpload, 
       const dist = getTouchDist(e.touches[0], e.touches[1]);
       const center = getTouchCenter(e.touches[0], e.touches[1]);
       const ratio = dist / touchState.current.lastDist;
-      const newScale = Math.max(0.5, Math.min(4, touchState.current.lastScale * ratio));
+      const newScale = Math.max(0.3, Math.min(8, touchState.current.lastScale * ratio));
       setScale(newScale);
       const dx = center.x - touchState.current.lastCenter.x;
       const dy = center.y - touchState.current.lastCenter.y;
@@ -120,9 +126,7 @@ export const CropArea: React.FC<CropAreaProps> = ({ imageSrc, imgRef, onUpload, 
   }, []);
 
   const handleTouchEnd = useCallback((e: React.TouchEvent) => {
-    if (e.touches.length < 2) {
-      touchState.current.dragging = false;
-    }
+    if (e.touches.length < 2) touchState.current.dragging = false;
     if (e.touches.length === 1) {
       touchState.current.lastPos = { x: e.touches[0].clientX, y: e.touches[0].clientY };
       touchState.current.dragging = true;
@@ -131,7 +135,7 @@ export const CropArea: React.FC<CropAreaProps> = ({ imageSrc, imgRef, onUpload, 
 
   const handleWheel = useCallback((e: React.WheelEvent) => {
     e.preventDefault();
-    setScale(prev => Math.max(0.5, Math.min(4, prev - e.deltaY * 0.002)));
+    setScale(prev => Math.max(0.3, Math.min(8, prev - e.deltaY * 0.003)));
   }, []);
 
   const totalScale = baseScale * scale;
@@ -139,59 +143,75 @@ export const CropArea: React.FC<CropAreaProps> = ({ imageSrc, imgRef, onUpload, 
   const imgH = imgRef.current ? imgRef.current.naturalHeight * totalScale : CONTAINER_SIZE;
 
   return (
-    <div className="flex flex-col items-center gap-3">
+    <div className="flex flex-col items-center gap-4">
       {imageSrc && (
         <>
-          <div
-            ref={containerRef}
-            className="rounded-full overflow-hidden border-4 border-primary/20 bg-muted relative cursor-grab active:cursor-grabbing"
-            style={{ width: CONTAINER_SIZE, height: CONTAINER_SIZE, touchAction: 'none' }}
-            onPointerDown={handlePointerDown}
-            onPointerMove={handlePointerMove}
-            onPointerUp={handlePointerUp}
-            onTouchStart={handleTouchStart}
-            onTouchMove={handleTouchMove}
-            onTouchEnd={handleTouchEnd}
-            onWheel={handleWheel}
-          >
-            <img
-              ref={imgRef as any}
-              src={imageSrc}
-              alt="Preview"
-              className="absolute select-none pointer-events-none"
-              draggable={false}
-              onLoad={handleImageLoad}
-              style={{
-                width: imgW,
-                height: imgH,
-                left: (CONTAINER_SIZE - imgW) / 2 + offsetX,
-                top: (CONTAINER_SIZE - imgH) / 2 + offsetY,
-              }}
-            />
+          {/* Crop preview with overlay guides */}
+          <div className="relative">
+            <div
+              ref={containerRef}
+              className="rounded-full overflow-hidden border-4 border-primary/30 bg-muted relative cursor-grab active:cursor-grabbing shadow-xl ring-2 ring-primary/10"
+              style={{ width: CONTAINER_SIZE, height: CONTAINER_SIZE, touchAction: 'none' }}
+              onPointerDown={handlePointerDown}
+              onPointerMove={handlePointerMove}
+              onPointerUp={handlePointerUp}
+              onTouchStart={handleTouchStart}
+              onTouchMove={handleTouchMove}
+              onTouchEnd={handleTouchEnd}
+              onWheel={handleWheel}
+            >
+              <img
+                ref={imgRef as any}
+                src={imageSrc}
+                alt="Preview"
+                className="absolute select-none pointer-events-none"
+                draggable={false}
+                onLoad={handleImageLoad}
+                style={{
+                  width: imgW,
+                  height: imgH,
+                  left: (CONTAINER_SIZE - imgW) / 2 + offsetX,
+                  top: (CONTAINER_SIZE - imgH) / 2 + offsetY,
+                }}
+              />
+              {/* Center crosshair guides */}
+              <div className="absolute inset-0 pointer-events-none">
+                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-8 h-8 border border-white/30 rounded-full" />
+              </div>
+            </div>
           </div>
 
-          {/* Zoom slider */}
-          <div className="w-full max-w-[256px] flex items-center gap-2">
-            <ZoomOut className="w-4 h-4 text-muted-foreground shrink-0" />
-            <Slider
-              value={[scale * 100]}
-              onValueChange={([v]) => setScale(v / 100)}
-              min={50}
-              max={400}
-              step={5}
-              className="flex-1"
-            />
-            <ZoomIn className="w-4 h-4 text-muted-foreground shrink-0" />
+          {/* Zoom controls */}
+          <div className="w-full max-w-[280px] space-y-2">
+            <div className="flex items-center gap-3">
+              <button onClick={() => setScale(prev => Math.max(0.3, prev - 0.1))} className="p-1.5 rounded-lg bg-muted hover:bg-muted/80 transition-colors">
+                <ZoomOut className="w-4 h-4 text-muted-foreground" />
+              </button>
+              <Slider
+                value={[scale * 100]}
+                onValueChange={([v]) => setScale(v / 100)}
+                min={30}
+                max={800}
+                step={5}
+                className="flex-1"
+              />
+              <button onClick={() => setScale(prev => Math.min(8, prev + 0.1))} className="p-1.5 rounded-lg bg-muted hover:bg-muted/80 transition-colors">
+                <ZoomIn className="w-4 h-4 text-muted-foreground" />
+              </button>
+            </div>
+            <div className="flex items-center justify-between text-xs text-muted-foreground">
+              <span>Zoom: {Math.round(scale * 100)}%</span>
+              <button onClick={handleReset} className="flex items-center gap-1 hover:text-foreground transition-colors">
+                <RotateCcw className="w-3 h-3" /> Reset
+              </button>
+            </div>
           </div>
-          <p className="text-xs text-muted-foreground text-center">
-            Zoom: {Math.round(scale * 100)}%
-          </p>
         </>
       )}
-      <p className="text-xs text-muted-foreground text-center flex items-center gap-1">
-        <Move className="w-3.5 h-3.5" /> Geser & cubit 2 jari untuk zoom
+      <p className="text-xs text-muted-foreground text-center flex items-center gap-1.5">
+        <Move className="w-3.5 h-3.5" /> Geser foto & scroll/cubit untuk zoom
       </p>
-      <div className="flex gap-2 w-full">
+      <div className="flex gap-2 w-full max-w-[280px]">
         <Button variant="outline" className="flex-1" onClick={onCancel}>Batal</Button>
         <Button className="flex-1 gap-2" onClick={() => onUpload(offsetX, offsetY, scale)} disabled={uploading || !imgLoaded}>
           {uploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Camera className="w-4 h-4" />}

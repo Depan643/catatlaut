@@ -1,8 +1,8 @@
 import React, { useEffect, useState } from 'react';
-import { FileDown, FileText, FileSpreadsheet } from 'lucide-react';
+import { FileDown, FileText, FileSpreadsheet, ClipboardList } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
-  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator,
 } from '@/components/ui/dropdown-menu';
 import { Kapal, Entry, KATEGORI_CUMI, JENIS_IKAN, JENIS_CUMI } from '@/types';
 import { format } from 'date-fns';
@@ -12,6 +12,7 @@ import autoTable from 'jspdf-autotable';
 
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
+import { useFishSpecies, FishSpecies } from '@/hooks/useFishSpecies';
 
 const MAX_ENTRIES_PER_COLUMN = 10;
 
@@ -99,6 +100,7 @@ const groupEntriesForTable = (entries: Entry[], jenisPendataan: 'ikan' | 'cumi')
 
 export const ExportDropdown: React.FC<ExportDropdownProps> = ({ kapal }) => {
   const { user } = useAuth();
+  const { species, getSpeciesMap } = useFishSpecies();
   const [profileData, setProfileData] = useState<{ display_name: string; location: string; phone: string } | null>(null);
 
   useEffect(() => {
@@ -567,6 +569,103 @@ export const ExportDropdown: React.FC<ExportDropdownProps> = ({ kapal }) => {
     URL.revokeObjectURL(url);
   };
 
+  // ======= EXPORT BORANG PDF =======
+  const handleExportBorang = () => {
+    const doc = new jsPDF('portrait');
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const margin = 14;
+    const speciesMap = getSpeciesMap();
+
+    // Title
+    doc.setFontSize(14);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(30, 64, 175);
+    doc.text('Detail Kapal dan Petugas', pageWidth / 2, 16, { align: 'center' });
+
+    // Kapal info
+    doc.setFontSize(9);
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(60, 60, 60);
+    let y = 24;
+    doc.text(`Kapal: ${kapal.namaKapal}  |  Tanda Selar: GT.${kapal.tandaSelar.gt} No.${kapal.tandaSelar.no}/${kapal.tandaSelar.huruf}  |  Tanggal: ${format(new Date(kapal.tanggal), 'dd/MM/yyyy')}`, margin, y);
+    y += 6;
+    if (profileData) {
+      doc.text(`Petugas: ${profileData.display_name || '-'}  |  Lokasi: ${profileData.location || '-'}`, margin, y);
+      y += 6;
+    }
+
+    // Get all species for the right category
+    const allSpecies = species.filter(s => s.kategori === kapal.jenisPendataan || (kapal.jenisPendataan === 'cumi' && s.kategori === 'cumi'));
+    const targetSpecies = allSpecies.length > 0 ? allSpecies : species;
+
+    // Build borang table: Jenis Ikan | Nama Latin | Harga | Jumlah
+    const grouped = groupEntriesByJenis(kapal.entries);
+    
+    const borangData: string[][] = targetSpecies.map(sp => {
+      const entryList = grouped[sp.nama_ikan];
+      const total = entryList ? entryList.reduce((a, b) => a + b, 0) : 0;
+      const hargaStr = sp.harga > 0 ? `Rp${sp.harga.toLocaleString('id-ID')}` : '-';
+      return [sp.nama_ikan, sp.nama_latin || '', hargaStr, total > 0 ? total.toLocaleString('id-ID') : ''];
+    });
+
+    // Add entries not in species list
+    Object.keys(grouped).forEach(jenis => {
+      if (!targetSpecies.find(s => s.nama_ikan === jenis)) {
+        const total = grouped[jenis].reduce((a, b) => a + b, 0);
+        const sp = speciesMap.get(jenis);
+        borangData.push([jenis, sp?.nama_latin || '', sp?.harga ? `Rp${sp.harga.toLocaleString('id-ID')}` : '-', total.toLocaleString('id-ID')]);
+      }
+    });
+
+    // Grand total
+    const grandTotal = kapal.entries.reduce((s, e) => s + e.berat, 0);
+    borangData.push(['TOTAL', '', '', grandTotal > 0 ? grandTotal.toLocaleString('id-ID') + ' kg' : '']);
+
+    autoTable(doc, {
+      startY: y,
+      head: [['Jenis Ikan', 'Nama Latin', 'Harga', 'Jumlah (kg)']],
+      body: borangData,
+      theme: 'grid',
+      styles: { fontSize: 7, cellPadding: 2 },
+      headStyles: { fillColor: [30, 64, 175], textColor: 255, fontStyle: 'bold', fontSize: 8 },
+      columnStyles: {
+        0: { cellWidth: 55, fontStyle: 'bold' },
+        1: { cellWidth: 45, fontStyle: 'italic', textColor: [100, 100, 100] },
+        2: { cellWidth: 30, halign: 'right' },
+        3: { cellWidth: 30, halign: 'center', fontStyle: 'bold' },
+      },
+      margin: { left: margin, right: margin },
+      didParseCell: (data) => {
+        // Highlight total row
+        if (data.row.index === borangData.length - 1 && data.section === 'body') {
+          data.cell.styles.fontStyle = 'bold';
+          data.cell.styles.fillColor = [220, 235, 255];
+          data.cell.styles.textColor = [30, 64, 175];
+        }
+        // Highlight rows that have data
+        if (data.section === 'body' && data.row.index < borangData.length - 1) {
+          const jumlah = borangData[data.row.index][3];
+          if (jumlah && jumlah !== '') {
+            data.cell.styles.fillColor = [240, 249, 255];
+          }
+        }
+      },
+    });
+
+    // Footer
+    const pageCount = doc.getNumberOfPages();
+    for (let i = 1; i <= pageCount; i++) {
+      doc.setPage(i);
+      const ph = doc.internal.pageSize.getHeight();
+      doc.setFontSize(7);
+      doc.setTextColor(120, 120, 120);
+      doc.text(`Diekspor: ${format(new Date(), 'dd MMM yyyy HH:mm', { locale: idLocale })}`, margin, ph - 7);
+      doc.text(`Halaman ${i}/${pageCount}`, pageWidth - margin, ph - 7, { align: 'right' });
+    }
+
+    doc.save(`Borang_${kapal.namaKapal.replace(/\s+/g, '_')}_${format(new Date(kapal.tanggal), 'yyyyMMdd')}.pdf`);
+  };
+
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
@@ -576,9 +675,13 @@ export const ExportDropdown: React.FC<ExportDropdownProps> = ({ kapal }) => {
           <FileDown className="w-4 h-4" />
         </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-48">
+      <DropdownMenuContent align="end" className="w-52">
+        <DropdownMenuItem onClick={handleExportBorang} className="gap-2 cursor-pointer">
+          <ClipboardList className="w-4 h-4" /> Export Borang PDF
+        </DropdownMenuItem>
+        <DropdownMenuSeparator />
         <DropdownMenuItem onClick={handleExportPdf} className="gap-2 cursor-pointer">
-          <FileText className="w-4 h-4" /> Export PDF
+          <FileText className="w-4 h-4" /> Export Laporan PDF
         </DropdownMenuItem>
         <DropdownMenuItem onClick={handleExportExcel} className="gap-2 cursor-pointer">
           <FileSpreadsheet className="w-4 h-4" /> Export Excel
