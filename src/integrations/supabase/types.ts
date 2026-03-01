@@ -156,6 +156,42 @@ export type Database = {
           },
         ]
       }
+      fish_species: {
+        Row: {
+          created_at: string
+          harga: number | null
+          id: string
+          is_active: boolean | null
+          kategori: string | null
+          nama_ikan: string
+          nama_latin: string | null
+          updated_at: string
+          urutan: number | null
+        }
+        Insert: {
+          created_at?: string
+          harga?: number | null
+          id?: string
+          is_active?: boolean | null
+          kategori?: string | null
+          nama_ikan: string
+          nama_latin?: string | null
+          updated_at?: string
+          urutan?: number | null
+        }
+        Update: {
+          created_at?: string
+          harga?: number | null
+          id?: string
+          is_active?: boolean | null
+          kategori?: string | null
+          nama_ikan?: string
+          nama_latin?: string | null
+          updated_at?: string
+          urutan?: number | null
+        }
+        Relationships: []
+      }
       kapal_data: {
         Row: {
           alat_tangkap: string | null
