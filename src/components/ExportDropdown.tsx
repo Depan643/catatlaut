@@ -595,62 +595,120 @@ export const ExportDropdown: React.FC<ExportDropdownProps> = ({ kapal }) => {
     }
 
     // Get all species for the right category
-    const allSpecies = species.filter(s => s.kategori === kapal.jenisPendataan || (kapal.jenisPendataan === 'cumi' && s.kategori === 'cumi'));
-    const targetSpecies = allSpecies.length > 0 ? allSpecies : species;
-
-    // Build borang table: Jenis Ikan | Nama Latin | Harga | Jumlah
     const grouped = groupEntriesByJenis(kapal.entries);
-    
-    const borangData: string[][] = targetSpecies.map(sp => {
-      const entryList = grouped[sp.nama_ikan];
-      const total = entryList ? entryList.reduce((a, b) => a + b, 0) : 0;
-      const hargaStr = sp.harga > 0 ? `Rp${sp.harga.toLocaleString('id-ID')}` : '-';
-      return [sp.nama_ikan, sp.nama_latin || '', hargaStr, total > 0 ? total.toLocaleString('id-ID') : ''];
-    });
 
-    // Add entries not in species list
-    Object.keys(grouped).forEach(jenis => {
-      if (!targetSpecies.find(s => s.nama_ikan === jenis)) {
-        const total = grouped[jenis].reduce((a, b) => a + b, 0);
-        const sp = speciesMap.get(jenis);
-        borangData.push([jenis, sp?.nama_latin || '', sp?.harga ? `Rp${sp.harga.toLocaleString('id-ID')}` : '-', total.toLocaleString('id-ID')]);
-      }
-    });
+    if (kapal.jenisPendataan === 'cumi') {
+      // Split into Cumi and Sotong sections
+      const cumiJenis = KATEGORI_CUMI.cumi as readonly string[];
+      const sotongJenis = [...KATEGORI_CUMI.sotongSemampar] as string[];
 
-    // Grand total
-    const grandTotal = kapal.entries.reduce((s, e) => s + e.berat, 0);
-    borangData.push(['TOTAL', '', '', grandTotal > 0 ? grandTotal.toLocaleString('id-ID') + ' kg' : '']);
+      const buildSection = (title: string, jenisList: readonly string[]) => {
+        doc.setFontSize(10);
+        doc.setFont('helvetica', 'bold');
+        doc.setTextColor(30, 64, 175);
+        doc.text(title, margin, y);
+        y += 4;
 
-    autoTable(doc, {
-      startY: y,
-      head: [['Jenis Ikan', 'Nama Latin', 'Harga', 'Jumlah (kg)']],
-      body: borangData,
-      theme: 'grid',
-      styles: { fontSize: 7, cellPadding: 2 },
-      headStyles: { fillColor: [30, 64, 175], textColor: 255, fontStyle: 'bold', fontSize: 8 },
-      columnStyles: {
-        0: { cellWidth: 55, fontStyle: 'bold' },
-        1: { cellWidth: 45, fontStyle: 'italic', textColor: [100, 100, 100] },
-        2: { cellWidth: 30, halign: 'right' },
-        3: { cellWidth: 30, halign: 'center', fontStyle: 'bold' },
-      },
-      margin: { left: margin, right: margin },
-      didParseCell: (data) => {
-        // Highlight total row
-        if (data.row.index === borangData.length - 1 && data.section === 'body') {
-          data.cell.styles.fontStyle = 'bold';
-          data.cell.styles.fillColor = [220, 235, 255];
-          data.cell.styles.textColor = [30, 64, 175];
+        const sectionData: string[][] = [];
+        jenisList.forEach(j => {
+          const entryList = grouped[j];
+          const total = entryList ? entryList.reduce((a, b) => a + b, 0) : 0;
+          const sp = speciesMap.get(j);
+          const hargaStr = sp && sp.harga > 0 ? `Rp${sp.harga.toLocaleString('id-ID')}` : '-';
+          sectionData.push([j, sp?.nama_latin || '', hargaStr, total > 0 ? total.toLocaleString('id-ID') : '']);
+        });
+        const sectionTotal = jenisList.reduce((sum, j) => sum + (grouped[j] ? grouped[j].reduce((a, b) => a + b, 0) : 0), 0);
+        sectionData.push(['SUBTOTAL', '', '', sectionTotal > 0 ? sectionTotal.toLocaleString('id-ID') + ' kg' : '']);
+
+        autoTable(doc, {
+          startY: y,
+          head: [['Jenis', 'Nama Latin', 'Harga', 'Jumlah (kg)']],
+          body: sectionData,
+          theme: 'grid',
+          styles: { fontSize: 7, cellPadding: 2 },
+          headStyles: { fillColor: [30, 64, 175], textColor: 255, fontStyle: 'bold', fontSize: 8 },
+          columnStyles: {
+            0: { cellWidth: 55, fontStyle: 'bold' },
+            1: { cellWidth: 45, fontStyle: 'italic', textColor: [100, 100, 100] },
+            2: { cellWidth: 30, halign: 'right' },
+            3: { cellWidth: 30, halign: 'center', fontStyle: 'bold' },
+          },
+          margin: { left: margin, right: margin },
+          didParseCell: (data) => {
+            if (data.row.index === sectionData.length - 1 && data.section === 'body') {
+              data.cell.styles.fontStyle = 'bold';
+              data.cell.styles.fillColor = [220, 235, 255];
+              data.cell.styles.textColor = [30, 64, 175];
+            }
+            if (data.section === 'body' && data.row.index < sectionData.length - 1) {
+              const jumlah = sectionData[data.row.index][3];
+              if (jumlah && jumlah !== '') data.cell.styles.fillColor = [240, 249, 255];
+            }
+          },
+        });
+        y = (doc as any).lastAutoTable.finalY + 8;
+      };
+
+      buildSection('DATA CUMI', cumiJenis);
+      if (y > doc.internal.pageSize.getHeight() - 60) { doc.addPage(); y = 20; }
+      buildSection('DATA SOTONG', sotongJenis);
+
+      // Grand total
+      const grandTotal = kapal.entries.reduce((s, e) => s + e.berat, 0);
+      doc.setFontSize(10);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(30, 64, 175);
+      doc.text(`GRAND TOTAL: ${grandTotal.toLocaleString('id-ID')} kg`, margin, y);
+    } else {
+      // Ikan - original behavior
+      const allSpecies = species.filter(s => s.kategori === 'ikan');
+      const targetSpecies = allSpecies.length > 0 ? allSpecies : species;
+      
+      const borangData: string[][] = targetSpecies.map(sp => {
+        const entryList = grouped[sp.nama_ikan];
+        const total = entryList ? entryList.reduce((a, b) => a + b, 0) : 0;
+        const hargaStr = sp.harga > 0 ? `Rp${sp.harga.toLocaleString('id-ID')}` : '-';
+        return [sp.nama_ikan, sp.nama_latin || '', hargaStr, total > 0 ? total.toLocaleString('id-ID') : ''];
+      });
+
+      Object.keys(grouped).forEach(jenis => {
+        if (!targetSpecies.find(s => s.nama_ikan === jenis)) {
+          const total = grouped[jenis].reduce((a, b) => a + b, 0);
+          const sp = speciesMap.get(jenis);
+          borangData.push([jenis, sp?.nama_latin || '', sp?.harga ? `Rp${sp.harga.toLocaleString('id-ID')}` : '-', total.toLocaleString('id-ID')]);
         }
-        // Highlight rows that have data
-        if (data.section === 'body' && data.row.index < borangData.length - 1) {
-          const jumlah = borangData[data.row.index][3];
-          if (jumlah && jumlah !== '') {
-            data.cell.styles.fillColor = [240, 249, 255];
+      });
+
+      const grandTotal = kapal.entries.reduce((s, e) => s + e.berat, 0);
+      borangData.push(['TOTAL', '', '', grandTotal > 0 ? grandTotal.toLocaleString('id-ID') + ' kg' : '']);
+
+      autoTable(doc, {
+        startY: y,
+        head: [['Jenis Ikan', 'Nama Latin', 'Harga', 'Jumlah (kg)']],
+        body: borangData,
+        theme: 'grid',
+        styles: { fontSize: 7, cellPadding: 2 },
+        headStyles: { fillColor: [30, 64, 175], textColor: 255, fontStyle: 'bold', fontSize: 8 },
+        columnStyles: {
+          0: { cellWidth: 55, fontStyle: 'bold' },
+          1: { cellWidth: 45, fontStyle: 'italic', textColor: [100, 100, 100] },
+          2: { cellWidth: 30, halign: 'right' },
+          3: { cellWidth: 30, halign: 'center', fontStyle: 'bold' },
+        },
+        margin: { left: margin, right: margin },
+        didParseCell: (data) => {
+          if (data.row.index === borangData.length - 1 && data.section === 'body') {
+            data.cell.styles.fontStyle = 'bold';
+            data.cell.styles.fillColor = [220, 235, 255];
+            data.cell.styles.textColor = [30, 64, 175];
           }
-        }
-      },
-    });
+          if (data.section === 'body' && data.row.index < borangData.length - 1) {
+            const jumlah = borangData[data.row.index][3];
+            if (jumlah && jumlah !== '') data.cell.styles.fillColor = [240, 249, 255];
+          }
+        },
+      });
+    }
 
     // Footer
     const pageCount = doc.getNumberOfPages();

@@ -1,8 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Entry, JENIS_IKAN, JENIS_CUMI } from '@/types';
 import { format } from 'date-fns';
 import { id as idLocale } from 'date-fns/locale';
-import { Pencil, Trash2, Clock, Scale, Check, X } from 'lucide-react';
+import { Pencil, Trash2, Clock, Scale, Check, X, Search } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -62,6 +62,8 @@ export const EntryList: React.FC<EntryListProps> = ({
     }
   };
 
+  const [searchQuery, setSearchQuery] = useState('');
+
   if (entries.length === 0) {
     return (
       <div className="text-center py-8 text-muted-foreground">
@@ -74,10 +76,31 @@ export const EntryList: React.FC<EntryListProps> = ({
     (a, b) => new Date(b.waktuInput).getTime() - new Date(a.waktuInput).getTime()
   );
 
+  const filteredEntries = searchQuery.trim()
+    ? sortedEntries.filter(e =>
+        e.jenis.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        e.berat.toString().includes(searchQuery)
+      )
+    : sortedEntries;
+
   return (
     <>
+      {/* Search */}
+      <div className="relative mb-2">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+        <Input
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          placeholder="Cari jenis ikan atau berat..."
+          className="pl-9 h-9 text-sm"
+        />
+      </div>
       <div className="space-y-2">
-        {sortedEntries.map((entry) => (
+        {filteredEntries.length === 0 ? (
+          <div className="text-center py-4 text-muted-foreground text-sm">
+            Tidak ada entri yang cocok
+          </div>
+        ) : filteredEntries.map((entry) => (
           <div
             key={entry.id}
             className="card-elevated p-3 flex items-center gap-3 animate-fade-in"

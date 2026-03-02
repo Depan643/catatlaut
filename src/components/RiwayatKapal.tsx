@@ -1,21 +1,16 @@
-import React, { useState, useMemo, useEffect } from 'react';
-import { Search, Calendar, CheckCircle2, ChevronRight, Ship, Filter, Trash2, X, FileSpreadsheet } from 'lucide-react';
+import React, { useState, useMemo } from 'react';
+import { Search, CheckCircle2, ChevronRight, Ship, Filter, Trash2, X } from 'lucide-react';
 import { Input } from '@/components/ui/input';
-import { Kapal, KATEGORI_CUMI } from '@/types';
-import { format, isToday, isYesterday, isWithinInterval, startOfDay, endOfDay } from 'date-fns';
+import { Kapal } from '@/types';
+import { format, isToday, isYesterday, startOfMonth, endOfMonth } from 'date-fns';
 import { id as idLocale } from 'date-fns/locale';
 import { Button } from '@/components/ui/button';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Calendar as CalendarComponent } from '@/components/ui/calendar';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
-import * as XLSX from 'xlsx';
 import { useLocale } from '@/i18n/useLocale';
-import { useAuth } from '@/hooks/useAuth';
-import { supabase } from '@/integrations/supabase/client';
 
 interface RiwayatKapalProps {
   kapalList: Kapal[];
@@ -24,32 +19,38 @@ interface RiwayatKapalProps {
   onDeleteKapal: (id: string) => void;
 }
 
-const getCumiCategory = (jenis: string): string => {
-  if (KATEGORI_CUMI.sotongSemampar.includes(jenis as any)) return 'Sotong/Semampar';
-  if (KATEGORI_CUMI.gurita.includes(jenis as any)) return 'Gurita';
-  return 'Cumi';
-};
 
 export const RiwayatKapal: React.FC<RiwayatKapalProps> = ({
   kapalList, onSelectKapal, onTogglePIPP, onDeleteKapal,
 }) => {
   const [search, setSearch] = useState('');
-  const [dateFrom, setDateFrom] = useState<Date | undefined>(undefined);
-  const [dateTo, setDateTo] = useState<Date | undefined>(undefined);
+  const [selectedMonth, setSelectedMonth] = useState<string>(() => {
+    const now = new Date();
+    return `${now.getFullYear()}-${String(now.getMonth()).padStart(2, '0')}`;
+  });
   const [filterJenis, setFilterJenis] = useState<string>('semua');
   const [showFilter, setShowFilter] = useState(false);
-  const { t } = useLocale();
-  const { user } = useAuth();
-  const [profileData, setProfileData] = useState<{ display_name: string; location: string; phone: string } | null>(null);
 
-  useEffect(() => {
-    if (!user) return;
-    supabase.from('profiles').select('display_name, location, phone').eq('user_id', user.id).maybeSingle().then(({ data }) => {
-      if (data) setProfileData(data as any);
+  const MONTH_OPTIONS = useMemo(() => {
+    const months: { value: string; label: string }[] = [];
+    months.push({ value: 'semua', label: 'Semua Bulan' });
+    const dates = kapalList.map(k => new Date(k.tanggal));
+    const uniqueMonths = new Set<string>();
+    const now = new Date();
+    uniqueMonths.add(`${now.getFullYear()}-${String(now.getMonth()).padStart(2, '0')}`);
+    dates.forEach(d => {
+      uniqueMonths.add(`${d.getFullYear()}-${String(d.getMonth()).padStart(2, '0')}`);
     });
-  }, [user]);
+    Array.from(uniqueMonths).sort().reverse().forEach(key => {
+      const [y, m] = key.split('-').map(Number);
+      const d = new Date(y, m, 1);
+      months.push({ value: key, label: format(d, 'MMMM yyyy', { locale: idLocale }) });
+    });
+    return months;
+  }, [kapalList]);
+  const { t } = useLocale();
 
-  const hasActiveFilter = !!dateFrom || !!dateTo || filterJenis !== 'semua';
+  const hasActiveFilter = selectedMonth !== `${new Date().getFullYear()}-${String(new Date().getMonth()).padStart(2, '0')}` || filterJenis !== 'semua';
 
   const filteredList = useMemo(() => {
     return kapalList.filter((kapal) => {
@@ -59,21 +60,24 @@ export const RiwayatKapal: React.FC<RiwayatKapalProps> = ({
           .toLowerCase().includes(search.toLowerCase());
 
       let matchesDate = true;
-      const kapalDate = new Date(kapal.tanggal);
-      if (dateFrom && dateTo) {
-        matchesDate = isWithinInterval(kapalDate, { start: startOfDay(dateFrom), end: endOfDay(dateTo) });
-      } else if (dateFrom) {
-        matchesDate = kapalDate >= startOfDay(dateFrom);
-      } else if (dateTo) {
-        matchesDate = kapalDate <= endOfDay(dateTo);
+      if (selectedMonth !== 'semua') {
+        const [y, m] = selectedMonth.split('-').map(Number);
+        const monthStart = startOfMonth(new Date(y, m, 1));
+        const monthEnd = endOfMonth(new Date(y, m, 1));
+        const kapalDate = new Date(kapal.tanggal);
+        matchesDate = kapalDate >= monthStart && kapalDate <= monthEnd;
       }
 
       const matchesJenis = filterJenis === 'semua' || kapal.jenisPendataan === filterJenis;
       return matchesSearch && matchesDate && matchesJenis;
     });
-  }, [kapalList, search, dateFrom, dateTo, filterJenis]);
+  }, [kapalList, search, selectedMonth, filterJenis]);
 
-  const clearFilters = () => { setDateFrom(undefined); setDateTo(undefined); setFilterJenis('semua'); };
+  const clearFilters = () => {
+    const now = new Date();
+    setSelectedMonth(`${now.getFullYear()}-${String(now.getMonth()).padStart(2, '0')}`);
+    setFilterJenis('semua');
+  };
 
   const formatTandaSelar = (tandaSelar: { gt: string; no: string; huruf: string }) =>
     `GT.${tandaSelar.gt} No.${tandaSelar.no}/${tandaSelar.huruf}`;
@@ -86,104 +90,6 @@ export const RiwayatKapal: React.FC<RiwayatKapalProps> = ({
 
   const getTotalBerat = (kapal: Kapal) => kapal.entries.reduce((sum, e) => sum + e.berat, 0);
 
-  const handleDownloadExcel = () => {
-    if (filteredList.length === 0) return;
-
-    const wb = XLSX.utils.book_new();
-
-    // Build HTML for styled Excel
-    let html = `<html><head><meta charset="utf-8"></head><body><table>`;
-
-    // Header
-    html += `<tr><td colspan="10" style="background-color:#1E40AF;color:white;font-size:16pt;font-weight:bold;text-align:center;padding:10px;">REKAP RIWAYAT PENDATAAN KAPAL</td></tr>`;
-    html += `<tr><td colspan="10"></td></tr>`;
-
-    // Profile info
-    if (profileData) {
-      const lbl = 'style="background-color:#EFF6FF;font-weight:bold;color:#1E40AF;padding:4px 8px;"';
-      const val = 'style="padding:4px 8px;"';
-      html += `<tr><td ${lbl}>Petugas</td><td ${val} colspan="3">${profileData.display_name || '-'}</td><td ${lbl}>Tanggal Export</td><td ${val} colspan="4">${format(new Date(), 'dd MMMM yyyy HH:mm', { locale: idLocale })}</td></tr>`;
-      html += `<tr><td ${lbl}>Lokasi</td><td ${val} colspan="3">${profileData.location || '-'}</td><td ${lbl}>Jumlah Kapal</td><td ${val} colspan="4">${filteredList.length}</td></tr>`;
-      html += `<tr><td colspan="10"></td></tr>`;
-    }
-
-    // Determine categories based on filter
-    const showIkan = filterJenis === 'semua' || filterJenis === 'ikan';
-    const showCumi = filterJenis === 'semua' || filterJenis === 'cumi';
-
-    // Category columns
-    const categoryColumns: string[] = [];
-    if (showIkan) categoryColumns.push('Total Ikan (kg)');
-    if (showCumi) {
-      categoryColumns.push('Total Cumi (kg)');
-      categoryColumns.push('Total Sotong/Semampar (kg)');
-      categoryColumns.push('Total Gurita (kg)');
-    }
-
-    // Table header
-    const headers = ['No', 'Nama Kapal', 'Tanggal', 'Tanda Selar', 'Alat Tangkap', ...categoryColumns, 'Jumlah Keseluruhan (kg)', 'Mulai Bongkar', 'Selesai Bongkar'];
-    const hStyle = 'style="background-color:#1E40AF;color:white;font-weight:bold;text-align:center;padding:6px;border:1px solid #93C5FD;"';
-    html += `<tr>`;
-    headers.forEach(h => { html += `<td ${hStyle}>${h}</td>`; });
-    html += `</tr>`;
-
-    // Data rows
-    let grandTotalAll = 0;
-    filteredList.forEach((kapal, idx) => {
-      const bg = idx % 2 === 0 ? '#F8FAFF' : '#FFFFFF';
-      const cellStyle = `style="padding:4px 6px;border:1px solid #E2E8F0;background-color:${bg};"`;
-      const numStyle = `style="padding:4px 6px;border:1px solid #E2E8F0;background-color:${bg};text-align:right;font-weight:bold;"`;
-
-      // Calculate category totals
-      let ikanTotal = 0, cumiTotal = 0, sotongTotal = 0, guritaTotal = 0;
-      kapal.entries.forEach(e => {
-        if (kapal.jenisPendataan === 'cumi') {
-          const cat = getCumiCategory(e.jenis);
-          if (cat === 'Cumi') cumiTotal += e.berat;
-          else if (cat === 'Sotong/Semampar') sotongTotal += e.berat;
-          else if (cat === 'Gurita') guritaTotal += e.berat;
-        } else {
-          ikanTotal += e.berat;
-        }
-      });
-
-      const totalBerat = getTotalBerat(kapal);
-      grandTotalAll += totalBerat;
-
-      html += `<tr>`;
-      html += `<td ${cellStyle} style="text-align:center;background-color:${bg};">${idx + 1}</td>`;
-      html += `<td ${cellStyle}>${kapal.namaKapal}</td>`;
-      html += `<td ${cellStyle}>${format(new Date(kapal.tanggal), 'dd/MM/yyyy', { locale: idLocale })}</td>`;
-      html += `<td ${cellStyle}>${formatTandaSelar(kapal.tandaSelar)}</td>`;
-      html += `<td ${cellStyle}>${kapal.alatTangkap || '-'}</td>`;
-      if (showIkan) html += `<td ${numStyle}>${kapal.jenisPendataan === 'ikan' ? ikanTotal.toLocaleString('id-ID') : '-'}</td>`;
-      if (showCumi) {
-        html += `<td ${numStyle}>${kapal.jenisPendataan === 'cumi' ? cumiTotal.toLocaleString('id-ID') : '-'}</td>`;
-        html += `<td ${numStyle}>${kapal.jenisPendataan === 'cumi' ? sotongTotal.toLocaleString('id-ID') : '-'}</td>`;
-        html += `<td ${numStyle}>${kapal.jenisPendataan === 'cumi' ? guritaTotal.toLocaleString('id-ID') : '-'}</td>`;
-      }
-      html += `<td ${numStyle}>${totalBerat.toLocaleString('id-ID')}</td>`;
-      html += `<td ${cellStyle} style="text-align:center;background-color:${bg};">${kapal.mulaiBongkar ? format(new Date(kapal.mulaiBongkar), 'HH:mm') : '-'}</td>`;
-      html += `<td ${cellStyle} style="text-align:center;background-color:${bg};">${kapal.selesaiBongkar ? format(new Date(kapal.selesaiBongkar), 'HH:mm') : '-'}</td>`;
-      html += `</tr>`;
-    });
-
-    // Grand total row
-    const totalStyle = 'style="background-color:#DBEAFE;color:#1E40AF;font-weight:bold;padding:6px;border:1px solid #93C5FD;text-align:right;"';
-    const totalLblStyle = 'style="background-color:#DBEAFE;color:#1E40AF;font-weight:bold;padding:6px;border:1px solid #93C5FD;"';
-    html += `<tr>`;
-    html += `<td ${totalLblStyle} colspan="5">GRAND TOTAL</td>`;
-    const catCount = categoryColumns.length;
-    for (let i = 0; i < catCount; i++) html += `<td ${totalStyle}></td>`;
-    html += `<td ${totalStyle}>${grandTotalAll.toLocaleString('id-ID')}</td>`;
-    html += `<td ${totalLblStyle} colspan="2"></td>`;
-    html += `</tr>`;
-
-    html += `</table></body></html>`;
-
-    const wb2 = XLSX.read(html, { type: 'string' });
-    XLSX.writeFile(wb2, `Riwayat_Kapal_${format(new Date(), 'yyyyMMdd_HHmmss')}.xlsx`);
-  };
 
   return (
     <div className="space-y-3">
@@ -225,35 +131,16 @@ export const RiwayatKapal: React.FC<RiwayatKapalProps> = ({
             </Select>
           </div>
 
-          <div className="grid grid-cols-2 gap-2">
-            <div className="space-y-1">
-              <p className="text-xs text-muted-foreground font-medium">{t.dariTanggal}</p>
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button variant="outline" className="w-full h-10 justify-start text-left text-xs font-normal">
-                    <Calendar className="w-3.5 h-3.5 mr-1.5" />
-                    {dateFrom ? format(dateFrom, 'd MMM yy', { locale: idLocale }) : t.pilih}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0" align="start">
-                  <CalendarComponent mode="single" selected={dateFrom} onSelect={setDateFrom} locale={idLocale} />
-                </PopoverContent>
-              </Popover>
-            </div>
-            <div className="space-y-1">
-              <p className="text-xs text-muted-foreground font-medium">{t.sampaiTanggal}</p>
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button variant="outline" className="w-full h-10 justify-start text-left text-xs font-normal">
-                    <Calendar className="w-3.5 h-3.5 mr-1.5" />
-                    {dateTo ? format(dateTo, 'd MMM yy', { locale: idLocale }) : t.pilih}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0" align="end">
-                  <CalendarComponent mode="single" selected={dateTo} onSelect={setDateTo} locale={idLocale} />
-                </PopoverContent>
-              </Popover>
-            </div>
+          <div className="space-y-1">
+            <p className="text-xs text-muted-foreground font-medium">Bulan</p>
+            <Select value={selectedMonth} onValueChange={setSelectedMonth}>
+              <SelectTrigger className="h-10"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                {MONTH_OPTIONS.map(opt => (
+                  <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
         </div>
       )}
@@ -263,17 +150,12 @@ export const RiwayatKapal: React.FC<RiwayatKapalProps> = ({
         <div className="flex items-center gap-2 text-xs text-muted-foreground bg-muted px-3 py-2 rounded-lg flex-wrap">
           <Filter className="w-3.5 h-3.5" />
           {filterJenis !== 'semua' && <span className="bg-primary/10 text-primary px-2 py-0.5 rounded-full">{filterJenis === 'ikan' ? '🐟 Ikan' : '🦑 Cumi'}</span>}
-          {dateFrom && <span className="bg-primary/10 text-primary px-2 py-0.5 rounded-full">{t.dariTanggal}: {format(dateFrom, 'd MMM', { locale: idLocale })}</span>}
-          {dateTo && <span className="bg-primary/10 text-primary px-2 py-0.5 rounded-full">{t.sampaiTanggal}: {format(dateTo, 'd MMM', { locale: idLocale })}</span>}
+          {selectedMonth !== 'semua' && (() => {
+            const [y, m] = selectedMonth.split('-').map(Number);
+            return <span className="bg-primary/10 text-primary px-2 py-0.5 rounded-full">{format(new Date(y, m, 1), 'MMMM yyyy', { locale: idLocale })}</span>;
+          })()}
           <span className="font-medium">({filteredList.length} {t.hasil})</span>
         </div>
-      )}
-
-      {/* Download Excel button */}
-      {filteredList.length > 0 && (
-        <Button variant="outline" onClick={handleDownloadExcel} className="w-full gap-2">
-          <FileSpreadsheet className="w-4 h-4" /> {t.downloadExcel}
-        </Button>
       )}
 
       {/* List */}
