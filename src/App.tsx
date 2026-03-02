@@ -16,6 +16,7 @@ import Dashboard from "./pages/Dashboard";
 import Admin from "./pages/Admin";
 import Auth from "./pages/Auth";
 import Chat from "./pages/Chat";
+import LaporanBulanan from "./pages/LaporanBulanan";
 import ViewProfile from "./pages/ViewProfile";
 import NotFound from "./pages/NotFound";
 
@@ -83,6 +84,7 @@ const App = () => (
             <Route path="/profile/:userId" element={<ProtectedRoute><ViewProfile /></ProtectedRoute>} />
             <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
             <Route path="/chat" element={<ProtectedRoute><Chat /></ProtectedRoute>} />
+            <Route path="/laporan-bulanan" element={<ProtectedRoute><LaporanBulanan /></ProtectedRoute>} />
             <Route path="/admin" element={<AdminRoute><Admin /></AdminRoute>} />
             <Route path="*" element={<NotFound />} />
           </Routes>

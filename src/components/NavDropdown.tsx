@@ -7,7 +7,7 @@ import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Button } from '@/components/ui/button';
-import { BarChart3, Shield, MessageCircle, User, LogOut, Menu } from 'lucide-react';
+import { BarChart3, Shield, MessageCircle, User, LogOut, Menu, FileText } from 'lucide-react';
 
 interface NavDropdownProps {
   avatarUrl: string | null;
@@ -48,6 +48,9 @@ export const NavDropdown: React.FC<NavDropdownProps> = ({ avatarUrl, displayName
         <DropdownMenuSeparator />
         <DropdownMenuItem onClick={() => navigate('/dashboard')} className="gap-2 cursor-pointer">
           <BarChart3 className="w-4 h-4" /> Dashboard
+        </DropdownMenuItem>
+        <DropdownMenuItem onClick={() => navigate('/laporan-bulanan')} className="gap-2 cursor-pointer">
+          <FileText className="w-4 h-4" /> Laporan Bulanan
         </DropdownMenuItem>
         <DropdownMenuItem onClick={() => navigate('/chat')} className="gap-2 cursor-pointer">
           <MessageCircle className="w-4 h-4" /> Chat Petugas
