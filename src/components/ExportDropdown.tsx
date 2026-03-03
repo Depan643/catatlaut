@@ -30,8 +30,8 @@ interface ExportDropdownProps {
 }
 
 const getCumiCategory = (jenis: string): string => {
-  if (KATEGORI_CUMI.sotongSemampar.includes(jenis as any)) return 'Sotong/Semampar';
-  if (KATEGORI_CUMI.gurita.includes(jenis as any)) return 'Gurita';
+  if (KATEGORI_CUMI.cumiCumi.includes(jenis)) return 'Cumi-Cumi';
+  if (KATEGORI_CUMI.gurita.includes(jenis)) return 'Gurita';
   return 'Cumi';
 };
 
@@ -363,7 +363,7 @@ export const ExportDropdown: React.FC<ExportDropdownProps> = ({ kapal }) => {
     if (kapal.jenisPendataan === 'cumi') {
       const catY = (doc as any).lastAutoTable.finalY + 8;
       if (catY < pageHeight - 40) {
-        const categoryTotals: Record<string, number> = { Cumi: 0, 'Sotong/Semampar': 0, Gurita: 0 };
+        const categoryTotals: Record<string, number> = { 'Cumi-Cumi': 0, Cumi: 0, Gurita: 0 };
         summary.forEach((row) => { if (row.kategori) categoryTotals[row.kategori] += row.total; });
         const activeCategories = Object.entries(categoryTotals).filter(([, total]) => total > 0);
         if (activeCategories.length > 0) {
@@ -547,7 +547,7 @@ export const ExportDropdown: React.FC<ExportDropdownProps> = ({ kapal }) => {
       html += `<tr><td colspan="5"></td></tr>`;
       html += `<tr><td class="section-header" colspan="5" style="background-color:#7C3AED;">TOTAL PER KATEGORI</td></tr>`;
       html += `<tr><td class="cat-header">Kategori</td><td class="cat-header">Total (kg)</td></tr>`;
-      const categoryTotals: Record<string, number> = { Cumi: 0, 'Sotong/Semampar': 0, Gurita: 0 };
+      const categoryTotals: Record<string, number> = { 'Cumi-Cumi': 0, Cumi: 0, Gurita: 0 };
       summary.forEach((row) => { if (row.kategori) categoryTotals[row.kategori] += row.total; });
       Object.entries(categoryTotals).filter(([, v]) => v > 0).forEach(([cat, total]) => {
         html += `<tr><td class="cat-cell">${cat}</td><td class="cat-cell" style="font-weight:bold;text-align:right;">${total.toLocaleString('id-ID')}</td></tr>`;
@@ -598,9 +598,10 @@ export const ExportDropdown: React.FC<ExportDropdownProps> = ({ kapal }) => {
     const grouped = groupEntriesByJenis(kapal.entries);
 
     if (kapal.jenisPendataan === 'cumi') {
-      // Split into Cumi and Sotong sections
+      // Split into Cumi-Cumi (borang) and Cumi (sotong/semampar/cumi-cumi) and Gurita sections
+      const cumiCumiJenis = KATEGORI_CUMI.cumiCumi as readonly string[];
       const cumiJenis = KATEGORI_CUMI.cumi as readonly string[];
-      const sotongJenis = [...KATEGORI_CUMI.sotongSemampar] as string[];
+      const guritaJenis = KATEGORI_CUMI.gurita as readonly string[];
 
       const buildSection = (title: string, jenisList: readonly string[]) => {
         doc.setFontSize(10);
@@ -649,9 +650,11 @@ export const ExportDropdown: React.FC<ExportDropdownProps> = ({ kapal }) => {
         y = (doc as any).lastAutoTable.finalY + 8;
       };
 
+      buildSection('DATA CUMI-CUMI', cumiCumiJenis);
+      if (y > doc.internal.pageSize.getHeight() - 60) { doc.addPage(); y = 20; }
       buildSection('DATA CUMI', cumiJenis);
       if (y > doc.internal.pageSize.getHeight() - 60) { doc.addPage(); y = 20; }
-      buildSection('DATA SOTONG', sotongJenis);
+      buildSection('DATA GURITA', guritaJenis);
 
       // Grand total
       const grandTotal = kapal.entries.reduce((s, e) => s + e.berat, 0);

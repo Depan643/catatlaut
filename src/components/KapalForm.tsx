@@ -1,10 +1,15 @@
 import React, { useState } from 'react';
-import { Ship, Fish, Anchor, Crosshair, MapPin } from 'lucide-react';
+import { Ship, Fish, Anchor, Crosshair, MapPin, CalendarDays } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Calendar } from '@/components/ui/calendar';
 import { useLocale } from '@/i18n/useLocale';
+import { format } from 'date-fns';
+import { id as idLocale } from 'date-fns/locale';
+import { cn } from '@/lib/utils';
 
 interface KapalFormProps {
   onSubmit: (data: {
@@ -13,6 +18,7 @@ interface KapalFormProps {
     jenisPendataan: 'ikan' | 'cumi';
     alatTangkap: string;
     posisiDermaga: string;
+    tanggalBongkar?: Date;
   }) => void;
   initialData?: {
     namaKapal: string;
@@ -20,6 +26,7 @@ interface KapalFormProps {
     jenisPendataan: 'ikan' | 'cumi';
     alatTangkap?: string;
     posisiDermaga?: string;
+    tanggalBongkar?: Date;
   };
   submitLabel?: string;
   isLoading?: boolean;
@@ -43,6 +50,7 @@ export const KapalForm: React.FC<KapalFormProps> = ({
   );
   const [alatTangkap, setAlatTangkap] = useState(initialData?.alatTangkap || '');
   const [posisiDermaga, setPosisiDermaga] = useState(initialData?.posisiDermaga || '');
+  const [tanggalBongkar, setTanggalBongkar] = useState<Date | undefined>(initialData?.tanggalBongkar);
 
   const formatGT = (value: string) => value.replace(/\D/g, '').slice(0, 3);
   const formatNo = (value: string) => value.replace(/\D/g, '').slice(0, 4);
@@ -67,6 +75,7 @@ export const KapalForm: React.FC<KapalFormProps> = ({
       jenisPendataan,
       alatTangkap: alatTangkap.trim(),
       posisiDermaga: posisiDermaga.trim(),
+      tanggalBongkar,
     });
   };
 
@@ -132,6 +141,27 @@ export const KapalForm: React.FC<KapalFormProps> = ({
         </Label>
         <Input value={posisiDermaga} onChange={(e) => setPosisiDermaga(e.target.value)}
           placeholder={t.posisiDermaga} className="input-field" />
+      </div>
+
+      {/* Tanggal Bongkar */}
+      <div className="space-y-2">
+        <Label className="text-base font-semibold flex items-center gap-2">
+          <CalendarDays className="w-4 h-4 text-primary" />
+          Tanggal Bongkaran
+        </Label>
+        <Popover>
+          <PopoverTrigger asChild>
+            <Button variant="outline" className={cn("w-full justify-start text-left font-normal input-field",
+              !tanggalBongkar && "text-muted-foreground")}>
+              <CalendarDays className="mr-2 h-4 w-4" />
+              {tanggalBongkar ? format(tanggalBongkar, 'dd MMMM yyyy', { locale: idLocale }) : 'Pilih tanggal (opsional)'}
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="w-auto p-0" align="start">
+            <Calendar mode="single" selected={tanggalBongkar} onSelect={setTanggalBongkar}
+              initialFocus className={cn("p-3 pointer-events-auto")} />
+          </PopoverContent>
+        </Popover>
       </div>
 
       {/* Jenis Pendataan */}

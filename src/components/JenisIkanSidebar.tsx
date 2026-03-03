@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
-import { Search, Check, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Search, Check, ChevronLeft, ChevronRight, X, EyeOff, Eye } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { JENIS_IKAN } from '@/types';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
 import { useFishSpecies } from '@/hooks/useFishSpecies';
+import { useTextSettings } from '@/hooks/useTextSettings';
 
 interface JenisIkanSidebarProps {
   onSelect: (jenis: string) => void;
@@ -13,6 +14,7 @@ interface JenisIkanSidebarProps {
   collapsed?: boolean;
   onCollapsedChange?: (collapsed: boolean) => void;
   weighedJenis?: Set<string>;
+  onClearSelection?: () => void;
 }
 
 export const JenisIkanSidebar: React.FC<JenisIkanSidebarProps> = ({
@@ -22,32 +24,28 @@ export const JenisIkanSidebar: React.FC<JenisIkanSidebarProps> = ({
   collapsed = false,
   onCollapsedChange,
   weighedJenis = new Set(),
+  onClearSelection,
 }) => {
   const [search, setSearch] = useState('');
+  const [hideRecent, setHideRecent] = useState(false);
   const { species, loading } = useFishSpecies('ikan');
+  const { getStyle } = useTextSettings();
 
-  // Use DB species if available, fallback to static list
   const allItems = species.length > 0 ? species.map(s => s.nama_ikan) : [...JENIS_IKAN];
-
   const filteredItems = allItems.filter((item) =>
     item.toLowerCase().includes(search.toLowerCase())
   );
-
-  // Map for showing latin names
   const speciesMap = new Map(species.map(s => [s.nama_ikan, s]));
+  const textStyle = getStyle();
 
   if (collapsed) {
     return (
       <div className="w-12 bg-card border-r border-border flex flex-col items-center py-4">
-        <button
-          onClick={() => onCollapsedChange?.(false)}
-          className="p-2 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
-        >
+        <button onClick={() => onCollapsedChange?.(false)}
+          className="p-2 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 transition-colors">
           <ChevronRight className="w-5 h-5" />
         </button>
-        <div className="mt-4 text-xs font-medium text-muted-foreground writing-vertical">
-          Jenis Ikan
-        </div>
+        <div className="mt-4 text-xs font-medium text-muted-foreground writing-vertical">Jenis Ikan</div>
       </div>
     );
   }
@@ -56,30 +54,33 @@ export const JenisIkanSidebar: React.FC<JenisIkanSidebarProps> = ({
     <div className="w-72 bg-card border-r border-border flex flex-col h-full">
       <div className="p-4 border-b border-border flex items-center justify-between">
         <h2 className="font-bold text-foreground">Pilih Jenis Ikan</h2>
-        <button
-          onClick={() => onCollapsedChange?.(true)}
-          className="p-1.5 rounded-lg hover:bg-muted transition-colors"
-        >
-          <ChevronLeft className="w-5 h-5 text-muted-foreground" />
-        </button>
+        <div className="flex items-center gap-1">
+          {selectedJenis && onClearSelection && (
+            <button onClick={onClearSelection}
+              className="p-1.5 rounded-lg hover:bg-destructive/10 transition-colors" title="Hapus pilihan">
+              <X className="w-4 h-4 text-destructive" />
+            </button>
+          )}
+          <button onClick={() => onCollapsedChange?.(true)}
+            className="p-1.5 rounded-lg hover:bg-muted transition-colors">
+            <ChevronLeft className="w-5 h-5 text-muted-foreground" />
+          </button>
+        </div>
       </div>
 
-      {recentItems.length > 0 && (
+      {recentItems.length > 0 && !hideRecent && (
         <div className="p-3 border-b border-border">
-          <div className="text-xs font-medium text-muted-foreground mb-2">Terakhir Digunakan</div>
+          <div className="flex items-center justify-between mb-2">
+            <div className="text-xs font-medium text-muted-foreground">Terakhir Digunakan</div>
+            <button onClick={() => setHideRecent(true)} className="p-1 rounded hover:bg-muted" title="Sembunyikan">
+              <EyeOff className="w-3 h-3 text-muted-foreground" />
+            </button>
+          </div>
           <div className="flex flex-wrap gap-1.5">
             {recentItems.map((item) => (
-              <button
-                key={item}
-                type="button"
-                onClick={() => onSelect(item)}
-                className={cn(
-                  "px-2.5 py-1 rounded-lg text-xs font-medium transition-all",
-                  selectedJenis === item
-                    ? "bg-primary text-primary-foreground"
-                    : "bg-muted hover:bg-muted/80 text-foreground"
-                )}
-              >
+              <button key={item} type="button" onClick={() => onSelect(item)}
+                className={cn("px-2.5 py-1 rounded-lg text-xs font-medium transition-all",
+                  selectedJenis === item ? "bg-primary text-primary-foreground" : "bg-muted hover:bg-muted/80 text-foreground")}>
                 {item.length > 12 ? item.substring(0, 12) + '...' : item}
               </button>
             ))}
@@ -87,59 +88,50 @@ export const JenisIkanSidebar: React.FC<JenisIkanSidebarProps> = ({
         </div>
       )}
 
+      {recentItems.length > 0 && hideRecent && (
+        <div className="px-3 py-1.5 border-b border-border">
+          <button onClick={() => setHideRecent(false)}
+            className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors">
+            <Eye className="w-3 h-3" /> Tampilkan terakhir digunakan
+          </button>
+        </div>
+      )}
+
       <div className="p-3 border-b border-border">
         <div className="relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-          <Input
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Cari jenis ikan..."
-            className="pl-9 h-10 text-sm"
-          />
+          <Input value={search} onChange={(e) => setSearch(e.target.value)}
+            placeholder="Cari jenis ikan..." className="pl-9 h-10 text-sm" />
         </div>
       </div>
 
       <ScrollArea className="flex-1">
         <div className="p-2 space-y-0.5">
           {filteredItems.length === 0 ? (
-            <div className="text-center py-8 text-muted-foreground text-sm">
-              Tidak ditemukan
-            </div>
+            <div className="text-center py-8 text-muted-foreground text-sm">Tidak ditemukan</div>
           ) : (
             filteredItems.map((item) => {
               const isWeighed = weighedJenis.has(item);
               const sp = speciesMap.get(item);
               return (
-                <button
-                  key={item}
-                  type="button"
-                  onClick={() => onSelect(item)}
-                  className={cn(
-                    "w-full flex items-center justify-between p-3 rounded-lg text-left text-sm transition-all",
-                    selectedJenis === item
-                      ? "bg-primary text-primary-foreground font-medium"
-                      : isWeighed
-                        ? "bg-primary/15 text-primary font-medium border border-primary/30"
-                        : "hover:bg-muted text-foreground"
-                  )}
-                >
+                <button key={item} type="button" onClick={() => onSelect(item)}
+                  className={cn("w-full flex items-center justify-between p-3 rounded-lg text-left transition-all",
+                    selectedJenis === item ? "bg-primary text-primary-foreground font-medium"
+                      : isWeighed ? "bg-primary/15 text-primary font-medium border border-primary/30"
+                        : "hover:bg-muted text-foreground")}>
                   <div className="truncate flex-1">
-                    <span className="flex items-center gap-1.5">
+                    <span className="flex items-center gap-1.5" style={textStyle}>
                       {isWeighed && <Check className="w-3 h-3 text-accent-foreground/70 shrink-0" />}
                       {item}
                     </span>
                     {sp?.nama_latin && (
-                      <span className={cn(
-                        "text-[10px] italic block mt-0.5",
-                        selectedJenis === item ? "text-primary-foreground/70" : "text-muted-foreground"
-                      )}>
+                      <span className={cn("text-[10px] italic block mt-0.5",
+                        selectedJenis === item ? "text-primary-foreground/70" : "text-muted-foreground")}>
                         {sp.nama_latin}
                       </span>
                     )}
                   </div>
-                  {selectedJenis === item && (
-                    <Check className="w-4 h-4 flex-shrink-0 ml-2" />
-                  )}
+                  {selectedJenis === item && <Check className="w-4 h-4 flex-shrink-0 ml-2" />}
                 </button>
               );
             })

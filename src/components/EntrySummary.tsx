@@ -24,8 +24,8 @@ interface SummaryItem {
 }
 
 const getCumiCategory = (jenis: string): string => {
-  if (KATEGORI_CUMI.sotongSemampar.includes(jenis as any)) return 'Sotong/Semampar';
-  if (KATEGORI_CUMI.gurita.includes(jenis as any)) return 'Gurita';
+  if (KATEGORI_CUMI.cumiCumi.includes(jenis)) return 'Cumi-Cumi';
+  if (KATEGORI_CUMI.gurita.includes(jenis)) return 'Gurita';
   return 'Cumi';
 };
 

@@ -24,8 +24,8 @@ const CHART_COLORS = [
 ];
 
 const getCumiCategory = (jenis: string): string => {
-  if (KATEGORI_CUMI.sotongSemampar.includes(jenis as any)) return 'Sotong/Semampar';
-  if (KATEGORI_CUMI.gurita.includes(jenis as any)) return 'Gurita';
+  if (KATEGORI_CUMI.cumiCumi.includes(jenis)) return 'Cumi-Cumi';
+  if (KATEGORI_CUMI.gurita.includes(jenis)) return 'Gurita';
   return 'Cumi';
 };
 
@@ -103,7 +103,7 @@ const Dashboard = () => {
 
   // Weight per category
   const weightByCategory = useMemo(() => {
-    const cats: Record<string, number> = { Ikan: 0, Cumi: 0, 'Sotong/Semampar': 0, Gurita: 0 };
+    const cats: Record<string, number> = { Ikan: 0, 'Cumi-Cumi': 0, Cumi: 0, Gurita: 0 };
     monthKapal.forEach(k => {
       k.entries.forEach(e => {
         if (k.jenisPendataan === 'ikan') {
@@ -186,13 +186,13 @@ const Dashboard = () => {
       const cs = `style="padding:4px 6px;border:1px solid #E2E8F0;background-color:${bg};"`;
       const ns = `style="padding:4px 6px;border:1px solid #E2E8F0;background-color:${bg};text-align:right;font-weight:bold;"`;
 
-      let ikan = 0, cumi = 0, sotong = 0, gurita = 0;
+      let ikan = 0, cumiCumi = 0, cumi = 0, gurita = 0;
       k.entries.forEach(e => {
         if (k.jenisPendataan === 'ikan') ikan += e.berat;
         else {
           const cat = getCumiCategory(e.jenis);
-          if (cat === 'Cumi') cumi += e.berat;
-          else if (cat === 'Sotong/Semampar') sotong += e.berat;
+          if (cat === 'Cumi-Cumi') cumiCumi += e.berat;
+          else if (cat === 'Cumi') cumi += e.berat;
           else gurita += e.berat;
         }
       });
@@ -208,8 +208,8 @@ const Dashboard = () => {
       html += `<td ${cs}>${k.alatTangkap || '-'}</td>`;
       html += `<td ${cs}>${k.posisiDermaga || '-'}</td>`;
       html += `<td ${ns}>${ikan > 0 ? ikan.toLocaleString('id-ID') : '-'}</td>`;
+      html += `<td ${ns}>${cumiCumi > 0 ? cumiCumi.toLocaleString('id-ID') : '-'}</td>`;
       html += `<td ${ns}>${cumi > 0 ? cumi.toLocaleString('id-ID') : '-'}</td>`;
-      html += `<td ${ns}>${sotong > 0 ? sotong.toLocaleString('id-ID') : '-'}</td>`;
       html += `<td ${ns}>${gurita > 0 ? gurita.toLocaleString('id-ID') : '-'}</td>`;
       html += `<td ${ns}>${total.toLocaleString('id-ID')}</td>`;
       html += `<td ${cs} style="text-align:center;background-color:${bg};">${k.mulaiBongkar ? format(new Date(k.mulaiBongkar), 'HH:mm') : '-'}</td>`;
@@ -221,22 +221,22 @@ const Dashboard = () => {
     const ts2 = 'style="background-color:#DBEAFE;color:#1E40AF;font-weight:bold;padding:6px;border:1px solid #93C5FD;text-align:right;"';
     const tl2 = 'style="background-color:#DBEAFE;color:#1E40AF;font-weight:bold;padding:6px;border:1px solid #93C5FD;"';
     html += `<tr><td ${tl2} colspan="7">GRAND TOTAL</td>`;
-    const totals = { ikan: 0, cumi: 0, sotong: 0, gurita: 0, all: 0 };
+    const totals = { ikan: 0, cumiCumi: 0, cumi: 0, gurita: 0, all: 0 };
     monthKapal.forEach(k => {
       k.entries.forEach(e => {
         totals.all += e.berat;
         if (k.jenisPendataan === 'ikan') totals.ikan += e.berat;
         else {
           const cat = getCumiCategory(e.jenis);
-          if (cat === 'Cumi') totals.cumi += e.berat;
-          else if (cat === 'Sotong/Semampar') totals.sotong += e.berat;
+          if (cat === 'Cumi-Cumi') totals.cumiCumi += e.berat;
+          else if (cat === 'Cumi') totals.cumi += e.berat;
           else totals.gurita += e.berat;
         }
       });
     });
     html += `<td ${ts2}>${totals.ikan > 0 ? totals.ikan.toLocaleString('id-ID') : '-'}</td>`;
+    html += `<td ${ts2}>${totals.cumiCumi > 0 ? totals.cumiCumi.toLocaleString('id-ID') : '-'}</td>`;
     html += `<td ${ts2}>${totals.cumi > 0 ? totals.cumi.toLocaleString('id-ID') : '-'}</td>`;
-    html += `<td ${ts2}>${totals.sotong > 0 ? totals.sotong.toLocaleString('id-ID') : '-'}</td>`;
     html += `<td ${ts2}>${totals.gurita > 0 ? totals.gurita.toLocaleString('id-ID') : '-'}</td>`;
     html += `<td ${ts2}>${totals.all.toLocaleString('id-ID')}</td>`;
     html += `<td ${tl2} colspan="2"></td></tr>`;
