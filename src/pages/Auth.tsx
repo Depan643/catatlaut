@@ -65,7 +65,8 @@ const Auth = () => {
         navigate('/');
       }
     } catch (error: any) {
-      toast.error(error.message || 'Gagal login');
+      console.error('Login error:', error);
+      toast.error('Email atau password salah. Silakan coba lagi.');
     } finally {
       setIsLoading(false);
     }
@@ -79,8 +80,8 @@ const Auth = () => {
       return;
     }
 
-    if (signupPassword.length < 6) {
-      toast.error('Password minimal 6 karakter');
+    if (signupPassword.length < 10) {
+      toast.error('Password minimal 10 karakter');
       return;
     }
 
@@ -102,7 +103,8 @@ const Auth = () => {
 
       toast.success('Pendaftaran berhasil! Silakan cek email untuk verifikasi.');
     } catch (error: any) {
-      toast.error(error.message || 'Gagal mendaftar');
+      console.error('Signup error:', error);
+      toast.error('Gagal mendaftar. Silakan coba lagi.');
     } finally {
       setIsLoading(false);
     }
@@ -239,7 +241,7 @@ const Auth = () => {
                     <Input
                       id="signup-password"
                       type="password"
-                      placeholder="Minimal 6 karakter"
+                      placeholder="Minimal 10 karakter"
                       value={signupPassword}
                       onChange={(e) => setSignupPassword(e.target.value)}
                       className="pl-10"

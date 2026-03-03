@@ -389,7 +389,8 @@ const Admin = () => {
       setRoleDialog(null);
       fetchAllData();
     } catch (err: any) {
-      toast.error(err.message || 'Gagal mengubah role');
+      console.error('Role change error:', err);
+      toast.error('Gagal mengubah role. Silakan coba lagi.');
     }
   };
 
@@ -407,7 +408,8 @@ const Admin = () => {
       setDeleteTarget(null);
       fetchAllData();
     } catch (err: any) {
-      toast.error(err.message || 'Gagal menghapus');
+      console.error('Delete kapal error:', err);
+      toast.error('Gagal menghapus. Silakan coba lagi.');
     }
   };
 
@@ -431,7 +433,8 @@ const Admin = () => {
       setEditUserDialog(null);
       fetchAllData();
     } catch (err: any) {
-      toast.error(err.message || 'Gagal memperbarui');
+      console.error('Edit user error:', err);
+      toast.error('Gagal memperbarui. Silakan coba lagi.');
     }
   };
 
@@ -447,7 +450,8 @@ const Admin = () => {
       setEditingEntry(null);
       fetchAllData();
     } catch (err: any) {
-      toast.error(err.message || 'Gagal memperbarui entri');
+      console.error('Edit entry error:', err);
+      toast.error('Gagal memperbarui entri. Silakan coba lagi.');
     }
   };
 
@@ -472,7 +476,8 @@ const Admin = () => {
       setEditingKapal(null);
       fetchAllData();
     } catch (err: any) {
-      toast.error(err.message || 'Gagal memperbarui kapal');
+      console.error('Edit kapal error:', err);
+      toast.error('Gagal memperbarui kapal. Silakan coba lagi.');
     }
   };
 
@@ -487,7 +492,8 @@ const Admin = () => {
       setEditingRoleNote(null);
       fetchAllData();
     } catch (err: any) {
-      toast.error(err.message || 'Gagal menyimpan');
+      console.error('Save role note error:', err);
+      toast.error('Gagal menyimpan. Silakan coba lagi.');
     }
   };
 

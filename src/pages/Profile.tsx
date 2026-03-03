@@ -335,7 +335,7 @@ const Profile = () => {
 
   const handleChangePassword = async () => {
     if (newPassword !== confirmPassword) { toast.error('Password tidak cocok'); return; }
-    if (newPassword.length < 6) { toast.error('Password minimal 6 karakter'); return; }
+    if (newPassword.length < 10) { toast.error('Password minimal 10 karakter'); return; }
     setChangingPassword(true);
     try {
       const { error } = await supabase.auth.updateUser({ password: newPassword });
@@ -344,7 +344,8 @@ const Profile = () => {
       setNewPassword('');
       setConfirmPassword('');
     } catch (err: any) {
-      toast.error(err.message || 'Gagal mengubah password');
+      console.error('Password change error:', err);
+      toast.error('Gagal mengubah password. Silakan coba lagi.');
     } finally {
       setChangingPassword(false);
     }
