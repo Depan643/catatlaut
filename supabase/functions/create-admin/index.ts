@@ -11,15 +11,68 @@ Deno.serve(async (req) => {
   }
 
   try {
+    // Validate caller is authenticated and is an admin
+    const authHeader = req.headers.get("Authorization");
+    if (!authHeader) {
+      return new Response(
+        JSON.stringify({ success: false, error: "Unauthorized" }),
+        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+    const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
+
+    const callerClient = createClient(supabaseUrl, supabaseAnonKey, {
+      global: { headers: { Authorization: authHeader } },
+    });
+
+    const { data: { user: caller }, error: callerError } = await callerClient.auth.getUser();
+    if (callerError || !caller) {
+      return new Response(
+        JSON.stringify({ success: false, error: "Unauthorized" }),
+        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
     const supabaseAdmin = createClient(
-      Deno.env.get("SUPABASE_URL")!,
+      supabaseUrl,
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
 
-    const adminEmail = "admin@pendataan.app";
-    const adminPassword = "Admin2024!";
+    // Verify caller is an existing admin
+    const { data: isAdmin } = await supabaseAdmin.rpc("has_role", {
+      _user_id: caller.id,
+      _role: "admin",
+    });
 
-    // Check if admin already exists
+    if (!isAdmin) {
+      return new Response(
+        JSON.stringify({ success: false, error: "Forbidden - admin only" }),
+        { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // Get admin credentials from request body
+    const body = await req.json();
+    const adminEmail = body.email;
+    const adminPassword = body.password;
+
+    if (!adminEmail || !adminPassword) {
+      return new Response(
+        JSON.stringify({ success: false, error: "Email and password are required" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    if (adminPassword.length < 12) {
+      return new Response(
+        JSON.stringify({ success: false, error: "Password must be at least 12 characters" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // Check if user already exists
     const { data: existingUsers } = await supabaseAdmin.auth.admin.listUsers();
     const existingAdmin = existingUsers?.users?.find(u => u.email === adminEmail);
 
@@ -28,7 +81,6 @@ Deno.serve(async (req) => {
     if (existingAdmin) {
       adminUserId = existingAdmin.id;
     } else {
-      // Create admin user with auto-confirm
       const { data: newUser, error: createError } = await supabaseAdmin.auth.admin.createUser({
         email: adminEmail,
         password: adminPassword,
@@ -64,14 +116,14 @@ Deno.serve(async (req) => {
     return new Response(
       JSON.stringify({
         success: true,
-        message: "Admin account created/verified",
-        credentials: { email: adminEmail, password: adminPassword },
+        message: existingAdmin ? "Admin account verified" : "Admin account created",
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (error) {
+    console.error("Admin creation error:", error);
     return new Response(
-      JSON.stringify({ success: false, error: error.message }),
+      JSON.stringify({ success: false, error: "Unable to process request. Please try again." }),
       { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }
