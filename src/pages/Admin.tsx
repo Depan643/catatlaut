@@ -21,6 +21,7 @@ import {
   ChevronRight, ChevronDown, Filter, X, Fish
 } from 'lucide-react';
 import { AdminSpeciesManager } from '@/components/AdminSpeciesManager';
+import { AdminTextSettings } from '@/components/AdminTextSettings';
 import { format, subDays, isWithinInterval, startOfDay, endOfDay, isToday, isYesterday, startOfMonth, endOfMonth } from 'date-fns';
 import { id as idLocale } from 'date-fns/locale';
 import { toast } from 'sonner';
@@ -1196,6 +1197,7 @@ const Admin = () => {
 
           {/* === SPECIES TAB === */}
           <TabsContent value="species" className="space-y-4">
+            <AdminTextSettings />
             <AdminSpeciesManager />
           </TabsContent>
 

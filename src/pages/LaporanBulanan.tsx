@@ -64,7 +64,6 @@ const LaporanBulanan = () => {
     });
   }, [kapalList, selectedMonth]);
 
-  // Fetch first photo from each category for each kapal
   useEffect(() => {
     if (!user || filteredKapal.length === 0) {
       setPhotos([]);
@@ -96,29 +95,74 @@ const LaporanBulanan = () => {
 
   const getPhoto = (kapalId: string) => photos.find(p => p.kapalId === kapalId);
 
-  const handleDownloadExcel = () => {
+  const handleDownloadExcel = async () => {
     if (filteredKapal.length === 0) return;
     const [y, m] = selectedMonth.split('-').map(Number);
     const monthLabel = format(new Date(y, m, 1), 'MMMM yyyy', { locale: idLocale });
 
+    // Build proper Excel with XLSX library
+    const wb = XLSX.utils.book_new();
+    
+    // Header rows
+    const wsData: any[][] = [];
+    wsData.push([`LAPORAN BULANAN - ${monthLabel.toUpperCase()}`]);
+    wsData.push([]);
+    if (profileData) {
+      wsData.push(['Petugas', profileData.display_name || '-']);
+      wsData.push(['Lokasi', profileData.location || '-']);
+    }
+    wsData.push([]);
+    wsData.push(['No', 'Nama Kapal', 'Tanggal', 'Dokumentasi', 'Dokumen Kerja']);
+
+    filteredKapal.forEach((kapal, idx) => {
+      const photo = getPhoto(kapal.id);
+      wsData.push([
+        idx + 1,
+        kapal.namaKapal,
+        format(new Date(kapal.tanggal), 'dd/MM/yyyy'),
+        photo?.dokumentasiUrl || '— Belum ada',
+        photo?.dokumenKerjaUrl || '— Belum ada',
+      ]);
+    });
+
+    const ws = XLSX.utils.aoa_to_sheet(wsData);
+
+    // Set column widths
+    ws['!cols'] = [
+      { wch: 5 },   // No
+      { wch: 30 },  // Nama Kapal
+      { wch: 15 },  // Tanggal
+      { wch: 40 },  // Dokumentasi
+      { wch: 40 },  // Dokumen Kerja
+    ];
+
+    // Merge title cell
+    ws['!merges'] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: 4 } }];
+
+    XLSX.utils.book_append_sheet(wb, ws, 'Laporan');
+
+    // Also create an HTML version with embedded images for better Excel compatibility
     let html = `<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">
 <head><meta charset="utf-8">
 <style>
-  td { font-family: Calibri, sans-serif; font-size: 11pt; }
-  .title { background-color:#1E40AF; color:#FFFFFF; font-size:14pt; font-weight:bold; text-align:center; padding:10px; }
-  .header { background-color:#1E40AF; color:#FFFFFF; font-weight:bold; text-align:center; padding:6px; border:1px solid #93C5FD; }
-  .cell { padding:6px 8px; border:1px solid #E2E8F0; }
-  .cell-alt { padding:6px 8px; border:1px solid #E2E8F0; background-color:#F0F9FF; }
+  td, th { font-family: Calibri, sans-serif; font-size: 11pt; border: 1px solid #000000; padding: 6px 8px; }
+  .title { background-color:#1E40AF; color:#FFFFFF; font-size:14pt; font-weight:bold; text-align:center; border: 1px solid #000; }
+  .header { background-color:#FFFF00; color:#000000; font-weight:bold; text-align:center; border: 2px solid #000; }
+  .cell { border: 1px solid #000000; padding: 6px 8px; }
+  .cell-alt { border: 1px solid #000000; padding: 6px 8px; background-color:#F9F9F9; }
+  .info-label { font-weight: bold; border: 1px solid #000000; background-color:#FFFDE7; }
+  .info-value { border: 1px solid #000000; }
 </style>
-</head><body><table>`;
+</head><body><table border="1" cellpadding="4" cellspacing="0">`;
 
-    html += `<tr><td class="title" colspan="4">LAPORAN BULANAN - ${monthLabel.toUpperCase()}</td></tr>`;
+    html += `<tr><td class="title" colspan="5">LAPORAN BULANAN - ${monthLabel.toUpperCase()}</td></tr>`;
+    html += `<tr><td colspan="5" style="border:1px solid #000;"></td></tr>`;
     if (profileData) {
-      html += `<tr><td class="cell" style="font-weight:bold;">Petugas</td><td class="cell" colspan="3">${profileData.display_name || '-'}</td></tr>`;
-      html += `<tr><td class="cell" style="font-weight:bold;">Lokasi</td><td class="cell" colspan="3">${profileData.location || '-'}</td></tr>`;
+      html += `<tr><td class="info-label">Petugas</td><td class="info-value" colspan="4">${profileData.display_name || '-'}</td></tr>`;
+      html += `<tr><td class="info-label">Lokasi</td><td class="info-value" colspan="4">${profileData.location || '-'}</td></tr>`;
     }
-    html += `<tr><td colspan="4"></td></tr>`;
-    html += `<tr><td class="header">No</td><td class="header">Nama Kapal</td><td class="header">Dokumentasi</td><td class="header">Dokumen Kerja</td></tr>`;
+    html += `<tr><td colspan="5" style="border:1px solid #000;"></td></tr>`;
+    html += `<tr><td class="header">No</td><td class="header">Nama Kapal</td><td class="header">Tanggal</td><td class="header">Dokumentasi</td><td class="header">Dokumen Kerja</td></tr>`;
     
     filteredKapal.forEach((kapal, idx) => {
       const cls = idx % 2 === 0 ? 'cell' : 'cell-alt';
@@ -126,15 +170,34 @@ const LaporanBulanan = () => {
       html += `<tr>`;
       html += `<td class="${cls}" style="text-align:center;">${idx + 1}</td>`;
       html += `<td class="${cls}">${kapal.namaKapal}</td>`;
-      html += `<td class="${cls}">${photo?.dokumentasiUrl ? '✓ Ada foto' : '— Belum ada'}</td>`;
-      html += `<td class="${cls}">${photo?.dokumenKerjaUrl ? '✓ Ada foto' : '— Belum ada'}</td>`;
+      html += `<td class="${cls}" style="text-align:center;">${format(new Date(kapal.tanggal), 'dd/MM/yyyy')}</td>`;
+      html += `<td class="${cls}" style="text-align:center;">`;
+      if (photo?.dokumentasiUrl) {
+        html += `<img src="${photo.dokumentasiUrl}" width="120" height="90" alt="Dokumentasi" />`;
+      } else {
+        html += `— Belum ada`;
+      }
+      html += `</td>`;
+      html += `<td class="${cls}" style="text-align:center;">`;
+      if (photo?.dokumenKerjaUrl) {
+        html += `<img src="${photo.dokumenKerjaUrl}" width="120" height="90" alt="Dokumen Kerja" />`;
+      } else {
+        html += `— Belum ada`;
+      }
+      html += `</td>`;
       html += `</tr>`;
     });
 
     html += `</table></body></html>`;
 
-    const wb = XLSX.read(html, { type: 'string' });
-    XLSX.writeFile(wb, `Laporan_Bulanan_${monthLabel.replace(/\s+/g, '_')}.xlsx`);
+    // Download as .xls with images
+    const blob = new Blob([html], { type: 'application/vnd.ms-excel;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `Laporan_Bulanan_${monthLabel.replace(/\s+/g, '_')}.xls`;
+    a.click();
+    URL.revokeObjectURL(url);
   };
 
   if (loading) {
@@ -221,7 +284,6 @@ const LaporanBulanan = () => {
         )}
       </main>
 
-      {/* Preview Dialog */}
       <Dialog open={previewOpen} onOpenChange={setPreviewOpen}>
         <DialogContent className="max-w-2xl max-h-[80vh]">
           <DialogHeader>
@@ -230,11 +292,11 @@ const LaporanBulanan = () => {
           <ScrollArea className="max-h-[60vh]">
             <table className="w-full text-sm border-collapse">
               <thead>
-                <tr className="bg-primary text-primary-foreground">
-                  <th className="p-2 border border-primary/50">No</th>
-                  <th className="p-2 border border-primary/50">Nama Kapal</th>
-                  <th className="p-2 border border-primary/50">Dokumentasi</th>
-                  <th className="p-2 border border-primary/50">Dokumen Kerja</th>
+                <tr style={{ backgroundColor: '#FFFF00' }}>
+                  <th className="p-2 border border-foreground/30 font-bold">No</th>
+                  <th className="p-2 border border-foreground/30 font-bold">Nama Kapal</th>
+                  <th className="p-2 border border-foreground/30 font-bold">Dokumentasi</th>
+                  <th className="p-2 border border-foreground/30 font-bold">Dokumen Kerja</th>
                 </tr>
               </thead>
               <tbody>

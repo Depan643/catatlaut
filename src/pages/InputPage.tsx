@@ -327,6 +327,7 @@ const InputPage = () => {
                 collapsed={!sidebarOpen}
                 onCollapsedChange={(collapsed) => handleSidebarToggle(!collapsed)}
                 weighedJenis={weighedJenis}
+                onClearSelection={() => { setSelectedJenis(''); setSidebarOpen(true); }}
               />
             )}
             {kapal.jenisPendataan === 'cumi' && (
@@ -337,6 +338,7 @@ const InputPage = () => {
                 collapsed={!sidebarOpen}
                 onCollapsedChange={(collapsed) => handleSidebarToggle(!collapsed)}
                 weighedJenis={weighedJenis}
+                onClearSelection={() => { setSelectedJenis(''); setSidebarOpen(true); }}
               />
             )}
 
