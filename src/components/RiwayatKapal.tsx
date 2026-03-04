@@ -24,6 +24,7 @@ export const RiwayatKapal: React.FC<RiwayatKapalProps> = ({
   kapalList, onSelectKapal, onTogglePIPP, onDeleteKapal,
 }) => {
   const [search, setSearch] = useState('');
+  const [pippConfirmId, setPippConfirmId] = useState<string | null>(null);
   const [selectedMonth, setSelectedMonth] = useState<string>(() => {
     const now = new Date();
     return `${now.getFullYear()}-${String(now.getMonth()).padStart(2, '0')}`;
@@ -206,10 +207,7 @@ export const RiwayatKapal: React.FC<RiwayatKapalProps> = ({
               <div className="mt-3 pt-3 border-t border-border/50 flex gap-2">
                 <button onClick={() => {
                     if (!kapal.donePIPP) {
-                      // Show inline confirmation
-                      if (window.confirm('Setelah ditandai Done PIPP, pendataan akan terkunci dan tidak bisa diedit lagi. Lanjutkan?')) {
-                        onTogglePIPP(kapal.id);
-                      }
+                      setPippConfirmId(kapal.id);
                     } else {
                       onTogglePIPP(kapal.id);
                     }
@@ -245,6 +243,29 @@ export const RiwayatKapal: React.FC<RiwayatKapalProps> = ({
           ))
         )}
       </div>
+
+      {/* PIPP Confirm Dialog */}
+      <AlertDialog open={!!pippConfirmId} onOpenChange={() => setPippConfirmId(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <CheckCircle2 className="w-5 h-5 text-success" /> Tandai Done PIPP?
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              Setelah ditandai Done PIPP, pendataan akan <strong>terkunci</strong> dan tidak bisa diedit lagi. Yakin ingin melanjutkan?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Batal</AlertDialogCancel>
+            <AlertDialogAction onClick={() => {
+              if (pippConfirmId) onTogglePIPP(pippConfirmId);
+              setPippConfirmId(null);
+            }} className="bg-success text-success-foreground hover:bg-success/90">
+              Ya, Done PIPP
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };

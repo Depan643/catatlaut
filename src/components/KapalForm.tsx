@@ -79,7 +79,7 @@ export const KapalForm: React.FC<KapalFormProps> = ({
     });
   };
 
-  const isValid = namaKapal.trim() && gtValue.length >= 1 && noValue.length >= 1 && hurufValue.length === 2;
+  const isValid = namaKapal.trim() && gtValue.length >= 1 && noValue.length >= 1 && hurufValue.length === 2 && !!tanggalBongkar;
 
   return (
     <form onSubmit={handleSubmit} className="space-y-5">
@@ -147,14 +147,14 @@ export const KapalForm: React.FC<KapalFormProps> = ({
       <div className="space-y-2">
         <Label className="text-base font-semibold flex items-center gap-2">
           <CalendarDays className="w-4 h-4 text-primary" />
-          Tanggal Bongkaran
+          Tanggal Bongkaran <span className="text-destructive">*</span>
         </Label>
         <Popover>
           <PopoverTrigger asChild>
             <Button variant="outline" className={cn("w-full justify-start text-left font-normal input-field",
               !tanggalBongkar && "text-muted-foreground")}>
               <CalendarDays className="mr-2 h-4 w-4" />
-              {tanggalBongkar ? format(tanggalBongkar, 'dd MMMM yyyy', { locale: idLocale }) : 'Pilih tanggal (opsional)'}
+              {tanggalBongkar ? format(tanggalBongkar, 'dd MMMM yyyy', { locale: idLocale }) : 'Pilih tanggal bongkaran'}
             </Button>
           </PopoverTrigger>
           <PopoverContent className="w-auto p-0" align="start">
