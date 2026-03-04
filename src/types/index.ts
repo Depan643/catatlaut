@@ -115,6 +115,6 @@ export const JENIS_CUMI = [
 
 export const KATEGORI_CUMI = {
   cumiCumi: ["2B", "3B", "4B", "5B", "2L", "3L", "4L", "5L", "CK", "CDL"] as readonly string[],
-  cumi: ["SOTONG/BLEKUTHAK", "SEMAMPAR", "CUMI-CUMI"] as readonly string[],
+  sotong: ["SOTONG/BLEKUTHAK", "SEMAMPAR", "CUMI-CUMI"] as readonly string[],
   gurita: ["GURITA"] as readonly string[],
 } as const;

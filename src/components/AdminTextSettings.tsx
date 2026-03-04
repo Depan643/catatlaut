@@ -57,7 +57,7 @@ export const AdminTextSettings: React.FC = () => {
               <SelectItem value="none">Normal (sesuai data)</SelectItem>
               <SelectItem value="uppercase">HURUF BESAR SEMUA</SelectItem>
               <SelectItem value="lowercase">huruf kecil semua</SelectItem>
-              <SelectItem value="capitalize">Huruf Awal Besar</SelectItem>
+              <SelectItem value="capitalize">Huruf Awal Besar Tiap Kata</SelectItem>
             </SelectContent>
           </Select>
         </div>
@@ -75,6 +75,13 @@ export const AdminTextSettings: React.FC = () => {
               <SelectItem value="'Times New Roman', serif">Times New Roman</SelectItem>
               <SelectItem value="Verdana, sans-serif">Verdana</SelectItem>
               <SelectItem value="'Trebuchet MS', sans-serif">Trebuchet MS</SelectItem>
+              <SelectItem value="Tahoma, sans-serif">Tahoma</SelectItem>
+              <SelectItem value="'Lucida Console', monospace">Lucida Console</SelectItem>
+              <SelectItem value="Impact, sans-serif">Impact</SelectItem>
+              <SelectItem value="'Comic Sans MS', cursive">Comic Sans MS</SelectItem>
+              <SelectItem value="'Segoe UI', sans-serif">Segoe UI</SelectItem>
+              <SelectItem value="Roboto, sans-serif">Roboto</SelectItem>
+              <SelectItem value="'Open Sans', sans-serif">Open Sans</SelectItem>
             </SelectContent>
           </Select>
         </div>

@@ -46,10 +46,20 @@ export const useTextSettings = () => {
     return {
       fontSize: `${settings.fontSize}px`,
       fontWeight: settings.fontWeight as any,
-      textTransform: settings.textTransform as any,
+      textTransform: settings.textTransform === 'capitalize' ? 'none' as any : settings.textTransform as any,
       fontFamily: settings.fontFamily === 'default' ? 'inherit' : settings.fontFamily,
     };
   }, [settings]);
 
-  return { settings, loading, updateSettings, getStyle };
+  const applyTextTransform = useCallback((text: string): string => {
+    switch (settings.textTransform) {
+      case 'uppercase': return text.toUpperCase();
+      case 'lowercase': return text.toLowerCase();
+      case 'capitalize':
+        return text.toLowerCase().replace(/(?:^|\s|\/)\S/g, (c) => c.toUpperCase());
+      default: return text;
+    }
+  }, [settings]);
+
+  return { settings, loading, updateSettings, getStyle, applyTextTransform };
 };

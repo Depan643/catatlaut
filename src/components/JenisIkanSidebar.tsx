@@ -29,7 +29,7 @@ export const JenisIkanSidebar: React.FC<JenisIkanSidebarProps> = ({
   const [search, setSearch] = useState('');
   const [hideRecent, setHideRecent] = useState(false);
   const { species, loading } = useFishSpecies('ikan');
-  const { getStyle } = useTextSettings();
+  const { getStyle, applyTextTransform } = useTextSettings();
 
   const allItems = species.length > 0 ? species.map(s => s.nama_ikan) : [...JENIS_IKAN];
   const filteredItems = allItems.filter((item) =>
@@ -55,12 +55,6 @@ export const JenisIkanSidebar: React.FC<JenisIkanSidebarProps> = ({
       <div className="p-4 border-b border-border flex items-center justify-between">
         <h2 className="font-bold text-foreground">Pilih Jenis Ikan</h2>
         <div className="flex items-center gap-1">
-          {selectedJenis && onClearSelection && (
-            <button onClick={onClearSelection}
-              className="p-1.5 rounded-lg hover:bg-destructive/10 transition-colors" title="Hapus pilihan">
-              <X className="w-4 h-4 text-destructive" />
-            </button>
-          )}
           <button onClick={() => onCollapsedChange?.(true)}
             className="p-1.5 rounded-lg hover:bg-muted transition-colors">
             <ChevronLeft className="w-5 h-5 text-muted-foreground" />
@@ -101,7 +95,13 @@ export const JenisIkanSidebar: React.FC<JenisIkanSidebarProps> = ({
         <div className="relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
           <Input value={search} onChange={(e) => setSearch(e.target.value)}
-            placeholder="Cari jenis ikan..." className="pl-9 h-10 text-sm" />
+            placeholder="Cari jenis ikan..." className="pl-9 pr-9 h-10 text-sm" />
+          {search && (
+            <button onClick={() => setSearch('')}
+              className="absolute right-3 top-1/2 -translate-y-1/2 p-0.5 rounded hover:bg-muted transition-colors" title="Hapus pencarian">
+              <X className="w-3.5 h-3.5 text-muted-foreground" />
+            </button>
+          )}
         </div>
       </div>
 
@@ -122,7 +122,7 @@ export const JenisIkanSidebar: React.FC<JenisIkanSidebarProps> = ({
                   <div className="truncate flex-1">
                     <span className="flex items-center gap-1.5" style={textStyle}>
                       {isWeighed && <Check className="w-3 h-3 text-accent-foreground/70 shrink-0" />}
-                      {item}
+                      {applyTextTransform(item)}
                     </span>
                     {sp?.nama_latin && (
                       <span className={cn("text-[10px] italic block mt-0.5",

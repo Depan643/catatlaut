@@ -1,5 +1,6 @@
 import React from 'react';
 import { Clock, Check } from 'lucide-react';
+import { useTextSettings } from '@/hooks/useTextSettings';
 
 interface RecentJenisPickerProps {
   recentItems: string[];
@@ -12,6 +13,9 @@ export const RecentJenisPicker: React.FC<RecentJenisPickerProps> = ({
   selectedJenis,
   onSelect,
 }) => {
+  const { getStyle, applyTextTransform } = useTextSettings();
+  const textStyle = getStyle();
+
   if (recentItems.length === 0) {
     return null;
   }
@@ -35,7 +39,7 @@ export const RecentJenisPicker: React.FC<RecentJenisPickerProps> = ({
                            : 'bg-card hover:bg-muted border border-border/50'
                        }`}
           >
-            <span className="truncate max-w-[150px]">{item}</span>
+            <span className="truncate max-w-[150px]" style={textStyle}>{applyTextTransform(item)}</span>
             {selectedJenis === item && (
               <Check className="w-4 h-4 flex-shrink-0" />
             )}

@@ -26,7 +26,7 @@ interface SummaryItem {
 const getCumiCategory = (jenis: string): string => {
   if (KATEGORI_CUMI.cumiCumi.includes(jenis)) return 'Cumi-Cumi';
   if (KATEGORI_CUMI.gurita.includes(jenis)) return 'Gurita';
-  return 'Cumi';
+  return 'Sotong';
 };
 
 export const EntrySummary: React.FC<EntrySummaryProps> = ({ entries, jenisPendataan = 'ikan' }) => {
@@ -74,7 +74,7 @@ export const EntrySummary: React.FC<EntrySummaryProps> = ({ entries, jenisPendat
   // Category totals for cumi
   const categoryTotals = useMemo(() => {
     if (jenisPendataan !== 'cumi') return null;
-    const totals: Record<string, number> = { Cumi: 0, 'Sotong/Semampar': 0, Gurita: 0 };
+    const totals: Record<string, number> = { 'Cumi-Cumi': 0, Sotong: 0, Gurita: 0 };
     summary.forEach((item) => {
       if (item.kategori) totals[item.kategori] += item.totalBerat;
     });

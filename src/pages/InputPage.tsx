@@ -456,6 +456,7 @@ const InputPage = () => {
               jenisPendataan: kapal.jenisPendataan,
               alatTangkap: kapal.alatTangkap,
               posisiDermaga: kapal.posisiDermaga,
+              tanggalBongkar: kapal.tanggal ? new Date(kapal.tanggal) : undefined,
             }}
             onSubmit={handleUpdateKapal}
             submitLabel="Simpan Perubahan"
