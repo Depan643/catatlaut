@@ -13,16 +13,21 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Label } from '@/components/ui/label';
+import { Progress } from '@/components/ui/progress';
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import {
   ArrowLeft, Users, Ship, BarChart3, Activity, Search, Loader2,
   Shield, Trash2, Eye, Calendar, RefreshCw, Download,
   TrendingUp, Anchor, AlertTriangle, Edit, Save,
   UserCheck, UserX, FileText, Clock, MapPin, Phone, Mail, Hash,
-  ChevronRight, ChevronDown, Filter, X, Fish
+  ChevronRight, ChevronDown, Filter, X, Fish, Database, HardDrive
 } from 'lucide-react';
 import { AdminSpeciesManager } from '@/components/AdminSpeciesManager';
 import { AdminTextSettings } from '@/components/AdminTextSettings';
-import { format, subDays, isWithinInterval, startOfDay, endOfDay, isToday, isYesterday, startOfMonth, endOfMonth } from 'date-fns';
+import { format, subDays, subMonths, isWithinInterval, startOfDay, endOfDay, isToday, isYesterday, startOfMonth, endOfMonth } from 'date-fns';
 import { id as idLocale } from 'date-fns/locale';
 import { toast } from 'sonner';
 import {
@@ -33,6 +38,7 @@ import * as XLSX from 'xlsx';
 import { ChatPanel } from '@/components/ChatPanel';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar as CalendarComponent } from '@/components/ui/calendar';
+import { ScrollArea } from '@/components/ui/scroll-area';
 
 const CHART_COLORS = [
   'hsl(210, 80%, 45%)', 'hsl(25, 95%, 55%)', 'hsl(150, 60%, 40%)',
@@ -132,6 +138,13 @@ const Admin = () => {
   const [userSearch, setUserSearch] = useState('');
   const [kapalSearch, setKapalSearch] = useState('');
   const [logSearch, setLogSearch] = useState('');
+  
+  // Overview monthly/yearly filter
+  const [overviewMonth, setOverviewMonth] = useState(() => format(new Date(), 'yyyy-MM'));
+  const [overviewYear, setOverviewYear] = useState(() => format(new Date(), 'yyyy'));
+  const [overviewMode, setOverviewMode] = useState<'month' | 'year'>('month');
+
+  // dateFilter for backward compat in data tab
   const [dateFilter, setDateFilter] = useState('30');
   
   // Enhanced kapal filters
@@ -168,6 +181,13 @@ const Admin = () => {
   const [editingKapal, setEditingKapal] = useState<KapalRow | null>(null);
   const [editKapalForm, setEditKapalForm] = useState({ nama_kapal: '', alat_tangkap: '', posisi_dermaga: '', tanda_selar_gt: '', tanda_selar_no: '', tanda_selar_huruf: '' });
 
+  // Delete entry confirm
+  const [deleteEntryTarget, setDeleteEntryTarget] = useState<EntryRow | null>(null);
+
+  // Storage usage
+  const [storageUsage, setStorageUsage] = useState<{ bucketName: string; fileCount: number; totalSize: number }[]>([]);
+  const [loadingStorage, setLoadingStorage] = useState(false);
+
   const fetchAllData = async () => {
     setLoading(true);
     try {
@@ -194,9 +214,52 @@ const Admin = () => {
     }
   };
 
+  const fetchStorageUsage = async () => {
+    setLoadingStorage(true);
+    try {
+      const buckets = ['avatars', 'kapal-photos', 'chat-attachments'];
+      const usage: typeof storageUsage = [];
+      for (const bucket of buckets) {
+        try {
+          const { data } = await supabase.storage.from(bucket).list('', { limit: 1000 });
+          let fileCount = 0;
+          let totalSize = 0;
+          if (data) {
+            // List may contain folders. We count files.
+            for (const item of data) {
+              if (item.metadata) {
+                fileCount++;
+                totalSize += (item.metadata as any).size || 0;
+              }
+            }
+          }
+          usage.push({ bucketName: bucket, fileCount, totalSize });
+        } catch {
+          usage.push({ bucketName: bucket, fileCount: 0, totalSize: 0 });
+        }
+      }
+      setStorageUsage(usage);
+    } catch {
+      // ignore
+    } finally {
+      setLoadingStorage(false);
+    }
+  };
+
   useEffect(() => { fetchAllData(); }, []);
 
   // === COMPUTED ===
+  // Overview date range based on month/year selection
+  const overviewDateRange = useMemo(() => {
+    if (overviewMode === 'month') {
+      const d = new Date(overviewMonth + '-01');
+      return { start: startOfMonth(d), end: endOfMonth(d) };
+    } else {
+      const y = parseInt(overviewYear);
+      return { start: new Date(y, 0, 1), end: new Date(y, 11, 31, 23, 59, 59) };
+    }
+  }, [overviewMode, overviewMonth, overviewYear]);
+
   const dateRange = useMemo(() => {
     const days = parseInt(dateFilter);
     return { start: subDays(new Date(), days), end: new Date() };
@@ -206,7 +269,6 @@ const Admin = () => {
     return kapalData.filter(k => {
       const d = new Date(k.tanggal);
       
-      // Date range filter
       let inRange = true;
       if (kapalDateFrom && kapalDateTo) {
         inRange = isWithinInterval(d, { start: startOfDay(kapalDateFrom), end: endOfDay(kapalDateTo) });
@@ -247,25 +309,18 @@ const Admin = () => {
 
   const filteredLogs = useMemo(() => {
     return activityLogs.filter(l => {
-      // Smart text search - search across all fields
       const matchSearch = !logSearch || (() => {
         const q = logSearch.toLowerCase();
-        // Search action label
         const actionInfo = ACTION_LABELS[l.action];
         if (actionInfo?.label.toLowerCase().includes(q)) return true;
-        // Search action key
         if (l.action.toLowerCase().includes(q)) return true;
-        // Search email
         if ((l.user_email || '').toLowerCase().includes(q)) return true;
-        // Search user name
         const logUser = users.find(u => u.user_id === l.user_id);
         if (logUser && (logUser.display_name || '').toLowerCase().includes(q)) return true;
         if (logUser && (logUser.username || '').toLowerCase().includes(q)) return true;
-        // Search details
         if (l.details) {
           const detailStr = JSON.stringify(l.details).toLowerCase();
           if (detailStr.includes(q)) return true;
-          // Search kapal names in details
           if (l.details.kapal_id) {
             const kapal = kapalData.find(k => k.id === l.details.kapal_id);
             if (kapal && kapal.nama_kapal.toLowerCase().includes(q)) return true;
@@ -285,14 +340,24 @@ const Admin = () => {
     });
   }, [activityLogs, logSearch, logFilterAction, logFilterUser, users, kapalData]);
 
+  // Overview stats filtered by month/year
+  const overviewKapal = useMemo(() => {
+    return kapalData.filter(k => {
+      const d = new Date(k.tanggal);
+      return isWithinInterval(d, { start: overviewDateRange.start, end: overviewDateRange.end });
+    });
+  }, [kapalData, overviewDateRange]);
+
+  const overviewEntries = useMemo(() => {
+    const kapalIds = new Set(overviewKapal.map(k => k.id));
+    return entries.filter(e => kapalIds.has(e.kapal_id));
+  }, [entries, overviewKapal]);
+
   const totalUsers = users.length;
-  const totalKapal = kapalData.length;
-  const totalEntries = entries.length;
-  const totalWeight = entries.reduce((s, e) => s + Number(e.berat), 0);
-  const kapalLast7Days = kapalData.filter(k =>
-    isWithinInterval(new Date(k.tanggal), { start: subDays(new Date(), 7), end: new Date() })
-  ).length;
-  const pippDoneCount = kapalData.filter(k => k.done_pipp).length;
+  const totalKapal = overviewKapal.length;
+  const totalEntries = overviewEntries.length;
+  const totalWeight = overviewEntries.reduce((s, e) => s + Number(e.berat), 0);
+  const pippDoneCount = overviewKapal.filter(k => k.done_pipp).length;
 
   const userStats = useMemo(() => {
     const map: Record<string, { kapal: number; entries: number; weight: number }> = {};
@@ -309,43 +374,42 @@ const Admin = () => {
   }, [kapalData, entries]);
 
   const dailyChartData = useMemo(() => {
-    const days = parseInt(dateFilter);
-    const data: { date: string; kapal: number; berat: number; ikan: number; cumi: number }[] = [];
-    for (let i = days - 1; i >= 0; i--) {
-      const d = subDays(new Date(), i);
-      const dayStart = startOfDay(d);
-      const dayEnd = endOfDay(d);
-      const dayKapal = kapalData.filter(k =>
-        isWithinInterval(new Date(k.tanggal), { start: dayStart, end: dayEnd })
-      );
-      const dayEntries = entries.filter(e => dayKapal.find(k => k.id === e.kapal_id));
-      data.push({
-        date: format(d, 'dd/MM'),
-        kapal: dayKapal.length,
-        berat: dayEntries.reduce((s, e) => s + Number(e.berat), 0),
-        ikan: dayKapal.filter(k => k.jenis_pendataan === 'ikan').length,
-        cumi: dayKapal.filter(k => k.jenis_pendataan === 'cumi').length,
-      });
-    }
-    return data;
-  }, [kapalData, entries, dateFilter]);
+    // Group by day within overview period
+    const groupMap: Record<string, { date: string; kapal: number; berat: number; ikan: number; cumi: number }> = {};
+    overviewKapal.forEach(k => {
+      const d = new Date(k.tanggal);
+      const key = format(d, 'dd/MM');
+      if (!groupMap[key]) groupMap[key] = { date: key, kapal: 0, berat: 0, ikan: 0, cumi: 0 };
+      groupMap[key].kapal++;
+      if (k.jenis_pendataan === 'ikan') groupMap[key].ikan++;
+      else groupMap[key].cumi++;
+    });
+    overviewEntries.forEach(e => {
+      const kapal = overviewKapal.find(k => k.id === e.kapal_id);
+      if (kapal) {
+        const key = format(new Date(kapal.tanggal), 'dd/MM');
+        if (groupMap[key]) groupMap[key].berat += Number(e.berat);
+      }
+    });
+    return Object.values(groupMap).sort((a, b) => {
+      const [ad, am] = a.date.split('/').map(Number);
+      const [bd, bm] = b.date.split('/').map(Number);
+      return am !== bm ? am - bm : ad - bd;
+    });
+  }, [overviewKapal, overviewEntries]);
 
   const jenisPieData = useMemo(() => {
-    const ikan = kapalData.filter(k => k.jenis_pendataan === 'ikan');
-    const cumi = kapalData.filter(k => k.jenis_pendataan === 'cumi');
-    const ikanWeight = entries.filter(e => ikan.find(k => k.id === e.kapal_id)).reduce((s, e) => s + Number(e.berat), 0);
-    const cumiWeight = entries.filter(e => cumi.find(k => k.id === e.kapal_id)).reduce((s, e) => s + Number(e.berat), 0);
-    const ikanEntries = entries.filter(e => ikan.find(k => k.id === e.kapal_id)).length;
-    const cumiEntries = entries.filter(e => cumi.find(k => k.id === e.kapal_id)).length;
+    const ikan = overviewKapal.filter(k => k.jenis_pendataan === 'ikan');
+    const cumi = overviewKapal.filter(k => k.jenis_pendataan === 'cumi');
+    const ikanWeight = overviewEntries.filter(e => ikan.find(k => k.id === e.kapal_id)).reduce((s, e) => s + Number(e.berat), 0);
+    const cumiWeight = overviewEntries.filter(e => cumi.find(k => k.id === e.kapal_id)).reduce((s, e) => s + Number(e.berat), 0);
+    const ikanEntries = overviewEntries.filter(e => ikan.find(k => k.id === e.kapal_id)).length;
+    const cumiEntries = overviewEntries.filter(e => cumi.find(k => k.id === e.kapal_id)).length;
     
     return {
       kapal: [
         { name: '🐟 Ikan', value: ikan.length },
         { name: '🦑 Cumi', value: cumi.length },
-      ].filter(d => d.value > 0),
-      berat: [
-        { name: '🐟 Ikan', value: ikanWeight },
-        { name: '🦑 Cumi', value: cumiWeight },
       ].filter(d => d.value > 0),
       summary: {
         ikanKapal: ikan.length, cumiKapal: cumi.length,
@@ -355,7 +419,7 @@ const Admin = () => {
         cumiPIPP: cumi.filter(k => k.done_pipp).length,
       },
     };
-  }, [kapalData, entries]);
+  }, [overviewKapal, overviewEntries]);
 
   const topUsers = useMemo(() => {
     return users
@@ -363,6 +427,22 @@ const Admin = () => {
       .sort((a, b) => b.stats.kapal - a.stats.kapal)
       .slice(0, 5);
   }, [users, userStats]);
+
+  // Month/year options
+  const monthOptions = useMemo(() => {
+    const months: string[] = [];
+    for (let i = 0; i < 24; i++) {
+      months.push(format(subMonths(new Date(), i), 'yyyy-MM'));
+    }
+    return months;
+  }, []);
+
+  const yearOptions = useMemo(() => {
+    const years = new Set<string>();
+    kapalData.forEach(k => years.add(format(new Date(k.tanggal), 'yyyy')));
+    years.add(format(new Date(), 'yyyy'));
+    return Array.from(years).sort().reverse();
+  }, [kapalData]);
 
   // === ACTIONS ===
   const getUserRole = (userId: string) => {
@@ -447,12 +527,36 @@ const Admin = () => {
       if (editEntryForm.berat) updates.berat = parseFloat(editEntryForm.berat);
       const { error } = await supabase.from('entries').update(updates).eq('id', editingEntry.id);
       if (error) throw error;
+      await supabase.from('activity_logs').insert({
+        user_id: user?.id, user_email: user?.email,
+        action: 'admin_edit_entry',
+        details: { entry_id: editingEntry.id, kapal_id: editingEntry.kapal_id, changes: updates },
+      });
       toast.success('Entri berhasil diperbarui');
       setEditingEntry(null);
       fetchAllData();
     } catch (err: any) {
       console.error('Edit entry error:', err);
       toast.error('Gagal memperbarui entri. Silakan coba lagi.');
+    }
+  };
+
+  const handleDeleteEntry = async () => {
+    if (!deleteEntryTarget) return;
+    try {
+      const { error } = await supabase.from('entries').delete().eq('id', deleteEntryTarget.id);
+      if (error) throw error;
+      await supabase.from('activity_logs').insert({
+        user_id: user?.id, user_email: user?.email,
+        action: 'delete_entry',
+        details: { entry_id: deleteEntryTarget.id, kapal_id: deleteEntryTarget.kapal_id, jenis: deleteEntryTarget.jenis, berat: deleteEntryTarget.berat },
+      });
+      toast.success('Entri berhasil dihapus');
+      setDeleteEntryTarget(null);
+      fetchAllData();
+    } catch (err: any) {
+      console.error('Delete entry error:', err);
+      toast.error('Gagal menghapus entri.');
     }
   };
 
@@ -528,7 +632,6 @@ const Admin = () => {
     const d = log.details as Record<string, any>;
     const parts: string[] = [];
     
-    // Field label map for human-readable log
     const fieldLabels: Record<string, string> = {
       display_name: 'Nama', username: 'Username', phone: 'Telepon', location: 'Lokasi',
       bio: 'Bio', avatar: 'Foto', nama_kapal: 'Nama Kapal', alat_tangkap: 'Alat Tangkap',
@@ -573,6 +676,14 @@ const Admin = () => {
     setKapalFilterUser('semua');
     setKapalDateFrom(undefined);
     setKapalDateTo(undefined);
+  };
+
+  const formatBytes = (bytes: number) => {
+    if (bytes === 0) return '0 B';
+    const k = 1024;
+    const sizes = ['B', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
   };
 
   if (loading) {
@@ -629,20 +740,48 @@ const Admin = () => {
             <TabsTrigger value="logs" className="text-[10px] sm:text-xs gap-1 data-[state=active]:bg-card">
               <Activity className="w-3.5 h-3.5" /> <span className="hidden sm:inline">Logs</span>
             </TabsTrigger>
-            <TabsTrigger value="database" className="text-[10px] sm:text-xs gap-1 data-[state=active]:bg-card">
+            <TabsTrigger value="database" className="text-[10px] sm:text-xs gap-1 data-[state=active]:bg-card" onClick={() => fetchStorageUsage()}>
               <Hash className="w-3.5 h-3.5" /> <span className="hidden sm:inline">DB</span>
             </TabsTrigger>
           </TabsList>
 
           {/* === OVERVIEW TAB === */}
           <TabsContent value="overview" className="space-y-4">
+            {/* Month/Year Filter */}
+            <div className="flex gap-2 items-center">
+              <div className="flex bg-muted rounded-lg p-0.5">
+                <button onClick={() => setOverviewMode('month')} className={`px-3 py-1 text-xs rounded-md font-medium transition-all ${overviewMode === 'month' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground'}`}>Bulan</button>
+                <button onClick={() => setOverviewMode('year')} className={`px-3 py-1 text-xs rounded-md font-medium transition-all ${overviewMode === 'year' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground'}`}>Tahun</button>
+              </div>
+              {overviewMode === 'month' ? (
+                <Select value={overviewMonth} onValueChange={setOverviewMonth}>
+                  <SelectTrigger className="flex-1 h-9 text-xs"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {monthOptions.map(m => (
+                      <SelectItem key={m} value={m}>
+                        {format(new Date(m + '-01'), 'MMMM yyyy', { locale: idLocale })}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              ) : (
+                <Select value={overviewYear} onValueChange={setOverviewYear}>
+                  <SelectTrigger className="flex-1 h-9 text-xs"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {yearOptions.map(y => (
+                      <SelectItem key={y} value={y}>{y}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
+            </div>
+
             <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
               {[
                 { icon: <Users className="w-5 h-5 text-primary" />, value: totalUsers, label: 'Total Petugas', bg: 'bg-primary/10' },
                 { icon: <Ship className="w-5 h-5 text-accent" />, value: totalKapal, label: 'Total Kapal', bg: 'bg-accent/10' },
                 { icon: <Anchor className="w-5 h-5 text-success" />, value: totalWeight.toLocaleString('id-ID'), label: 'Total Berat (kg)', bg: 'bg-success/10' },
-                { icon: <TrendingUp className="w-5 h-5 text-primary" />, value: kapalLast7Days, label: 'Kapal 7 Hari', bg: 'bg-primary/10' },
-                { icon: <BarChart3 className="w-5 h-5 text-accent" />, value: totalEntries, label: 'Total Entri', bg: 'bg-accent/10' },
+                { icon: <BarChart3 className="w-5 h-5 text-primary" />, value: totalEntries, label: 'Total Entri', bg: 'bg-primary/10' },
                 { icon: <Shield className="w-5 h-5 text-success" />, value: `${pippDoneCount}/${totalKapal}`, label: 'Done PIPP', bg: 'bg-success/10' },
               ].map((stat, i) => (
                 <Card key={i}>
@@ -657,26 +796,12 @@ const Admin = () => {
               ))}
             </div>
 
-            {/* Daily Activity Chart - Enhanced */}
+            {/* Daily Activity Chart */}
             <Card>
               <CardHeader className="pb-2">
-                <div className="flex items-center justify-between">
-                  <CardTitle className="text-sm font-bold flex items-center gap-2">
-                    <BarChart3 className="w-4 h-4 text-primary" /> Aktivitas Harian
-                  </CardTitle>
-                  <Select value={dateFilter} onValueChange={setDateFilter}>
-                    <SelectTrigger className="w-32 h-8 text-xs"><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="7">7 Hari</SelectItem>
-                      <SelectItem value="14">14 Hari</SelectItem>
-                      <SelectItem value="30">30 Hari</SelectItem>
-                      <SelectItem value="60">60 Hari</SelectItem>
-                      <SelectItem value="90">90 Hari</SelectItem>
-                      <SelectItem value="180">6 Bulan</SelectItem>
-                      <SelectItem value="365">1 Tahun</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
+                <CardTitle className="text-sm font-bold flex items-center gap-2">
+                  <BarChart3 className="w-4 h-4 text-primary" /> Aktivitas {overviewMode === 'month' ? 'Harian' : 'Bulanan'}
+                </CardTitle>
               </CardHeader>
               <CardContent>
                 <ResponsiveContainer width="100%" height={200}>
@@ -693,7 +818,7 @@ const Admin = () => {
             </Card>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {/* Enhanced Jenis Pendataan */}
+              {/* Jenis Pendataan */}
               <Card>
                 <CardHeader className="pb-2">
                   <CardTitle className="text-sm font-bold">Distribusi Jenis Pendataan</CardTitle>
@@ -759,7 +884,6 @@ const Admin = () => {
           {/* === USERS / PETUGAS TAB === */}
           <TabsContent value="users" className="space-y-4">
             {viewUserKapal ? (
-              // User detail view
               <>
                 <div className="flex items-center gap-2 mb-2">
                   <Button variant="ghost" size="sm" onClick={() => { setViewUserKapal(null); setExpandedKapal(null); }}>
@@ -767,7 +891,6 @@ const Admin = () => {
                   </Button>
                 </div>
 
-                {/* Detailed user profile card */}
                 {selectedUserProfile && (
                   <Card className="mb-4">
                     <CardContent className="p-4">
@@ -804,7 +927,6 @@ const Admin = () => {
                   </Card>
                 )}
 
-                {/* Search & filter for user's kapal */}
                 <div className="flex gap-2 mb-2">
                   <div className="relative flex-1">
                     <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
@@ -847,48 +969,46 @@ const Admin = () => {
                                 <span>GT.{k.tanda_selar_gt} No.{k.tanda_selar_no}/{k.tanda_selar_huruf}</span>
                               </div>
                               {kEntries.length > 0 ? (
-                                (() => {
-                                  // Aggregate by jenis, grouping cumi types
-                                  const CUMI_GROUP: Record<string, string> = {};
-                                  ['2B','3B','4B','5B','2L','3L','4L','5L','CK','CDL'].forEach(j => CUMI_GROUP[j] = 'Cumi');
-                                  ['Sotong','Semampar'].forEach(j => CUMI_GROUP[j] = 'Sotong/Semampar');
-                                  
-                                  const isCumi = k.jenis_pendataan === 'cumi';
-                                  const jenisMap: Record<string, { total: number; count: number }> = {};
-                                  kEntries.forEach(e => {
-                                    const key = isCumi && CUMI_GROUP[e.jenis] ? CUMI_GROUP[e.jenis] : e.jenis;
-                                    if (!jenisMap[key]) jenisMap[key] = { total: 0, count: 0 };
-                                    jenisMap[key].total += Number(e.berat);
-                                    jenisMap[key].count++;
-                                  });
-                                  const sortedJenis = Object.entries(jenisMap).sort((a, b) => b[1].total - a[1].total);
-                                  return (
-                                    <div className="rounded-lg border overflow-hidden">
-                                      <Table>
-                                        <TableHeader>
-                                          <TableRow>
-                                            <TableHead className="text-xs">Jenis</TableHead>
-                                            <TableHead className="text-xs text-right">Total (kg)</TableHead>
-                                            <TableHead className="text-xs text-right">Entri</TableHead>
-                                          </TableRow>
-                                        </TableHeader>
-                                        <TableBody>
-                                          {sortedJenis.map(([jenis, data]) => (
-                                            <TableRow key={jenis}>
-                                              <TableCell className="text-sm">{jenis}</TableCell>
-                                              <TableCell className="text-sm font-medium text-right">{data.total.toLocaleString('id-ID')}</TableCell>
-                                              <TableCell className="text-xs text-muted-foreground text-right">{data.count}x</TableCell>
-                                            </TableRow>
-                                          ))}
-                                        </TableBody>
-                                      </Table>
-                                      <div className="px-3 py-2 bg-muted/50 text-sm font-semibold flex justify-between">
-                                        <span>Total ({sortedJenis.length} jenis)</span>
-                                        <span>{totalBerat.toLocaleString('id-ID')} kg</span>
-                                      </div>
-                                    </div>
-                                  );
-                                })()
+                                <div className="rounded-lg border overflow-hidden">
+                                  <Table>
+                                    <TableHeader>
+                                      <TableRow>
+                                        <TableHead className="text-xs">Jenis</TableHead>
+                                        <TableHead className="text-xs text-right">Berat (kg)</TableHead>
+                                        <TableHead className="text-xs text-right">Waktu</TableHead>
+                                        <TableHead className="text-xs w-20"></TableHead>
+                                      </TableRow>
+                                    </TableHeader>
+                                    <TableBody>
+                                      {kEntries.sort((a, b) => new Date(b.waktu_input).getTime() - new Date(a.waktu_input).getTime()).map(entry => (
+                                        <TableRow key={entry.id}>
+                                          <TableCell className="text-sm">{entry.jenis}</TableCell>
+                                          <TableCell className="text-sm font-medium text-right">{Number(entry.berat).toLocaleString('id-ID')}</TableCell>
+                                          <TableCell className="text-xs text-muted-foreground text-right">{format(new Date(entry.waktu_input), 'HH:mm')}</TableCell>
+                                          <TableCell>
+                                            <div className="flex gap-1 justify-end">
+                                              <Button size="icon" variant="ghost" className="h-6 w-6"
+                                                onClick={() => {
+                                                  setEditingEntry(entry);
+                                                  setEditEntryForm({ jenis: entry.jenis, berat: String(entry.berat) });
+                                                }}>
+                                                <Edit className="w-3 h-3" />
+                                              </Button>
+                                              <Button size="icon" variant="ghost" className="h-6 w-6 text-destructive"
+                                                onClick={() => setDeleteEntryTarget(entry)}>
+                                                <Trash2 className="w-3 h-3" />
+                                              </Button>
+                                            </div>
+                                          </TableCell>
+                                        </TableRow>
+                                      ))}
+                                    </TableBody>
+                                  </Table>
+                                  <div className="px-3 py-2 bg-muted/50 text-sm font-semibold flex justify-between">
+                                    <span>Total ({kEntries.length} entri)</span>
+                                    <span>{totalBerat.toLocaleString('id-ID')} kg</span>
+                                  </div>
+                                </div>
                               ) : (
                                 <p className="text-xs text-muted-foreground text-center py-4">Belum ada entri</p>
                               )}
@@ -923,7 +1043,6 @@ const Admin = () => {
                 )}
               </>
             ) : (
-              // User list
               <>
                 <div className="flex gap-2">
                   <div className="relative flex-1">
@@ -1003,7 +1122,7 @@ const Admin = () => {
             )}
           </TabsContent>
 
-          {/* === DATA TAB - Enhanced Filters === */}
+          {/* === DATA TAB === */}
           <TabsContent value="data" className="space-y-4">
             <div className="flex gap-2 flex-wrap">
               <div className="relative flex-1 min-w-[200px]">
@@ -1021,7 +1140,6 @@ const Admin = () => {
               </Button>
             </div>
 
-            {/* Expanded filters */}
             {showKapalFilter && (
               <Card className="p-3 space-y-3">
                 <div className="flex items-center justify-between">
@@ -1092,7 +1210,7 @@ const Admin = () => {
                         </Button>
                       </PopoverTrigger>
                       <PopoverContent className="w-auto p-0" align="start">
-                        <CalendarComponent mode="single" selected={kapalDateFrom} onSelect={setKapalDateFrom} locale={idLocale} />
+                        <CalendarComponent mode="single" selected={kapalDateFrom} onSelect={setKapalDateFrom} locale={idLocale} className="p-3 pointer-events-auto" />
                       </PopoverContent>
                     </Popover>
                   </div>
@@ -1106,7 +1224,7 @@ const Admin = () => {
                         </Button>
                       </PopoverTrigger>
                       <PopoverContent className="w-auto p-0" align="end">
-                        <CalendarComponent mode="single" selected={kapalDateTo} onSelect={setKapalDateTo} locale={idLocale} />
+                        <CalendarComponent mode="single" selected={kapalDateTo} onSelect={setKapalDateTo} locale={idLocale} className="p-3 pointer-events-auto" />
                       </PopoverContent>
                     </Popover>
                   </div>
@@ -1201,7 +1319,7 @@ const Admin = () => {
             <AdminSpeciesManager />
           </TabsContent>
 
-          {/* === ROLES TAB - No moderator === */}
+          {/* === ROLES TAB === */}
           <TabsContent value="roles" className="space-y-4">
             <Card>
               <CardHeader>
@@ -1265,7 +1383,7 @@ const Admin = () => {
             </Card>
           </TabsContent>
 
-          {/* === LOGS TAB - Enhanced Search === */}
+          {/* === LOGS TAB === */}
           <TabsContent value="logs" className="space-y-4">
             <div className="space-y-2">
               <div className="relative">
@@ -1363,6 +1481,91 @@ const Admin = () => {
 
           {/* === DATABASE TAB === */}
           <TabsContent value="database" className="space-y-4">
+            {/* Tech Stack Info */}
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-bold flex items-center gap-2">
+                  <Database className="w-4 h-4 text-primary" /> Teknologi yang Digunakan
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="p-3 rounded-lg bg-primary/5 border border-primary/10">
+                    <p className="text-xs font-bold text-primary mb-1">Database</p>
+                    <p className="text-sm font-semibold">PostgreSQL</p>
+                    <p className="text-[10px] text-muted-foreground">via Lovable Cloud</p>
+                  </div>
+                  <div className="p-3 rounded-lg bg-accent/5 border border-accent/10">
+                    <p className="text-xs font-bold text-accent mb-1">API</p>
+                    <p className="text-sm font-semibold">REST + Realtime</p>
+                    <p className="text-[10px] text-muted-foreground">PostgREST + WebSocket</p>
+                  </div>
+                  <div className="p-3 rounded-lg bg-green-500/5 border border-green-500/10">
+                    <p className="text-xs font-bold text-green-600 mb-1">Auth</p>
+                    <p className="text-sm font-semibold">JWT Auth</p>
+                    <p className="text-[10px] text-muted-foreground">Email + Password</p>
+                  </div>
+                  <div className="p-3 rounded-lg bg-blue-500/5 border border-blue-500/10">
+                    <p className="text-xs font-bold text-blue-600 mb-1">Storage</p>
+                    <p className="text-sm font-semibold">Object Storage</p>
+                    <p className="text-[10px] text-muted-foreground">S3-compatible</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Storage Usage */}
+            <Card>
+              <CardHeader className="pb-2">
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-sm font-bold flex items-center gap-2">
+                    <HardDrive className="w-4 h-4 text-primary" /> Penggunaan Storage
+                  </CardTitle>
+                  <Button size="sm" variant="ghost" className="text-xs h-7" onClick={fetchStorageUsage}>
+                    <RefreshCw className={`w-3 h-3 mr-1 ${loadingStorage ? 'animate-spin' : ''}`} /> Refresh
+                  </Button>
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                {storageUsage.length > 0 ? storageUsage.map(bucket => (
+                  <div key={bucket.bucketName} className="space-y-1">
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="font-medium font-mono">{bucket.bucketName}</span>
+                      <span className="text-muted-foreground text-xs">{bucket.fileCount} file · {formatBytes(bucket.totalSize)}</span>
+                    </div>
+                    <Progress value={Math.min((bucket.totalSize / (1024 * 1024 * 100)) * 100, 100)} className="h-1.5" />
+                  </div>
+                )) : (
+                  <p className="text-xs text-muted-foreground text-center py-4">
+                    {loadingStorage ? 'Memuat...' : 'Klik Refresh untuk melihat penggunaan storage'}
+                  </p>
+                )}
+
+                {/* Database row counts */}
+                <div className="mt-4 pt-3 border-t">
+                  <p className="text-xs font-bold text-muted-foreground mb-2">Penggunaan Database</p>
+                  <div className="grid grid-cols-2 gap-2">
+                    {[
+                      { name: 'profiles', count: users.length, icon: '👤' },
+                      { name: 'kapal_data', count: kapalData.length, icon: '🚢' },
+                      { name: 'entries', count: entries.length, icon: '📦' },
+                      { name: 'activity_logs', count: activityLogs.length, icon: '📋' },
+                      { name: 'user_roles', count: userRoles.length, icon: '🛡️' },
+                    ].map(t => (
+                      <div key={t.name} className="flex items-center gap-2 p-2 rounded-lg bg-muted/50">
+                        <span>{t.icon}</span>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-xs font-mono font-semibold truncate">{t.name}</p>
+                          <p className="text-xs text-muted-foreground">{t.count} baris</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Schema */}
             <Card>
               <CardHeader>
                 <CardTitle className="text-sm font-bold flex items-center gap-2">
@@ -1523,41 +1726,14 @@ const Admin = () => {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setEditUserDialog(null)}>Batal</Button>
-            <Button onClick={handleEditUser}><Save className="w-4 h-4 mr-1" /> Simpan</Button>
+            <Button onClick={handleEditUser}>Simpan</Button>
           </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Role Change Dialog - No moderator */}
-      <Dialog open={!!roleDialog} onOpenChange={() => setRoleDialog(null)}>
-        <DialogContent className="max-w-xs">
-          <DialogHeader>
-            <DialogTitle>Ubah Role</DialogTitle>
-          </DialogHeader>
-          {roleDialog && (
-            <div className="space-y-3">
-              <p className="text-sm text-muted-foreground">Role saat ini: <Badge>{getRoleLabel(roleDialog.currentRole)}</Badge></p>
-              <div className="grid grid-cols-2 gap-2">
-                {[
-                  { key: 'user', label: 'Petugas' },
-                  { key: 'admin', label: 'Admin' },
-                ].map(({ key, label }) => (
-                  <Button key={key} size="sm"
-                    variant={roleDialog.currentRole === key ? 'default' : 'outline'}
-                    onClick={() => handleChangeRole(roleDialog.userId, key)}
-                    className="text-xs">
-                    {label}
-                  </Button>
-                ))}
-              </div>
-            </div>
-          )}
         </DialogContent>
       </Dialog>
 
       {/* Edit Entry Dialog */}
       <Dialog open={!!editingEntry} onOpenChange={() => setEditingEntry(null)}>
-        <DialogContent className="max-w-xs">
+        <DialogContent className="max-w-sm">
           <DialogHeader>
             <DialogTitle>Edit Entri</DialogTitle>
           </DialogHeader>
@@ -1568,12 +1744,12 @@ const Admin = () => {
             </div>
             <div className="space-y-1.5">
               <Label className="text-xs">Berat (kg)</Label>
-              <Input type="number" value={editEntryForm.berat} onChange={e => setEditEntryForm(f => ({ ...f, berat: e.target.value }))} />
+              <Input type="number" value={editEntryForm.berat} onChange={e => setEditEntryForm(f => ({ ...f, berat: e.target.value }))} inputMode="decimal" />
             </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setEditingEntry(null)}>Batal</Button>
-            <Button onClick={handleEditEntry}><Save className="w-4 h-4 mr-1" /> Simpan</Button>
+            <Button onClick={handleEditEntry}>Simpan</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -1582,9 +1758,7 @@ const Admin = () => {
       <Dialog open={!!editingKapal} onOpenChange={() => setEditingKapal(null)}>
         <DialogContent className="max-w-sm">
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <Ship className="w-5 h-5 text-primary" /> Edit Data Kapal
-            </DialogTitle>
+            <DialogTitle>Edit Data Kapal</DialogTitle>
           </DialogHeader>
           <div className="space-y-3">
             <div className="space-y-1.5">
@@ -1616,30 +1790,79 @@ const Admin = () => {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setEditingKapal(null)}>Batal</Button>
-            <Button onClick={handleEditKapal}><Save className="w-4 h-4 mr-1" /> Simpan</Button>
+            <Button onClick={handleEditKapal}>Simpan</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
-      {/* Delete Confirm Dialog */}
-      <Dialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
+      {/* Role Dialog */}
+      <Dialog open={!!roleDialog} onOpenChange={() => setRoleDialog(null)}>
         <DialogContent className="max-w-xs">
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2 text-destructive">
-              <AlertTriangle className="w-5 h-5" /> Konfirmasi Hapus
-            </DialogTitle>
+            <DialogTitle>Ubah Role</DialogTitle>
           </DialogHeader>
-          <p className="text-sm">Yakin ingin menghapus <strong>{deleteTarget?.label}</strong>? Tindakan ini tidak dapat dibatalkan.</p>
-          <DialogFooter className="gap-2">
-            <Button variant="outline" onClick={() => setShowDeleteConfirm(false)}>Batal</Button>
-            <Button variant="destructive" onClick={() => {
-              if (deleteTarget?.type === 'kapal') handleDeleteKapal(deleteTarget.id);
-            }}>
-              <Trash2 className="w-4 h-4 mr-1" /> Hapus
-            </Button>
-          </DialogFooter>
+          {roleDialog && (
+            <div className="space-y-2">
+              <p className="text-sm text-muted-foreground">
+                Role saat ini: <strong>{getRoleLabel(roleDialog.currentRole)}</strong>
+              </p>
+              <div className="space-y-2">
+                {['admin', 'user'].map(role => (
+                  <Button
+                    key={role}
+                    variant={roleDialog.currentRole === role ? 'default' : 'outline'}
+                    className="w-full justify-start"
+                    onClick={() => handleChangeRole(roleDialog.userId, role)}
+                    disabled={roleDialog.currentRole === role}
+                  >
+                    <Shield className="w-4 h-4 mr-2" />
+                    {getRoleLabel(role)}
+                  </Button>
+                ))}
+              </div>
+            </div>
+          )}
         </DialogContent>
       </Dialog>
+
+      {/* Delete Kapal Confirmation */}
+      <AlertDialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Hapus Data?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Apakah Anda yakin ingin menghapus <strong>{deleteTarget?.label}</strong>? Semua entri terkait juga akan dihapus.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => { setShowDeleteConfirm(false); setDeleteTarget(null); }}>Batal</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive hover:bg-destructive/90"
+              onClick={() => deleteTarget && handleDeleteKapal(deleteTarget.id)}
+            >
+              Hapus
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Delete Entry Confirmation */}
+      <AlertDialog open={!!deleteEntryTarget} onOpenChange={() => setDeleteEntryTarget(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Hapus Entri?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Hapus entri <strong>{deleteEntryTarget?.jenis}</strong> ({Number(deleteEntryTarget?.berat || 0).toLocaleString('id-ID')} kg)?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Batal</AlertDialogCancel>
+            <AlertDialogAction className="bg-destructive hover:bg-destructive/90" onClick={handleDeleteEntry}>
+              Hapus
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };
