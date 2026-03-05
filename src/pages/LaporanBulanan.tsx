@@ -11,6 +11,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { format, startOfMonth, endOfMonth } from 'date-fns';
 import { id as idLocale } from 'date-fns/locale';
 import * as XLSX from 'xlsx';
+import { toast } from 'sonner';
 
 interface KapalPhoto {
   kapalId: string;
@@ -30,6 +31,7 @@ const LaporanBulanan = () => {
   const [loadingPhotos, setLoadingPhotos] = useState(false);
   const [previewOpen, setPreviewOpen] = useState(false);
   const [profileData, setProfileData] = useState<{ display_name: string; location: string } | null>(null);
+  const [downloading, setDownloading] = useState(false);
 
   useEffect(() => {
     if (!user) return;
@@ -95,51 +97,160 @@ const LaporanBulanan = () => {
 
   const getPhoto = (kapalId: string) => photos.find(p => p.kapalId === kapalId);
 
+  // Helper to fetch image as base64
+  const fetchImageAsBase64 = async (url: string): Promise<string | null> => {
+    try {
+      const response = await fetch(url);
+      if (!response.ok) return null;
+      const blob = await response.blob();
+      return new Promise((resolve) => {
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          const base64 = (reader.result as string).split(',')[1];
+          resolve(base64);
+        };
+        reader.onerror = () => resolve(null);
+        reader.readAsDataURL(blob);
+      });
+    } catch {
+      return null;
+    }
+  };
+
   const handleDownloadExcel = async () => {
     if (filteredKapal.length === 0) return;
-    const [y, m] = selectedMonth.split('-').map(Number);
-    const monthLabel = format(new Date(y, m, 1), 'MMMM yyyy', { locale: idLocale });
-
-    // Build Excel using XLSX library directly (proper xlsx format)
-    const wb = XLSX.utils.book_new();
+    setDownloading(true);
     
-    const wsData: any[][] = [];
-    wsData.push([`LAPORAN BULANAN - ${monthLabel.toUpperCase()}`]);
-    wsData.push([]);
-    if (profileData) {
-      wsData.push(['Petugas', profileData.display_name || '-']);
-      wsData.push(['Lokasi', profileData.location || '-']);
+    try {
+      const [y, m] = selectedMonth.split('-').map(Number);
+      const monthLabel = format(new Date(y, m, 1), 'MMMM yyyy', { locale: idLocale });
+
+      const wb = XLSX.utils.book_new();
+      const wsData: any[][] = [];
+      
+      // Title
+      wsData.push([`LAPORAN BULANAN - ${monthLabel.toUpperCase()}`]);
+      wsData.push([]);
+      if (profileData) {
+        wsData.push(['Petugas', profileData.display_name || '-']);
+        wsData.push(['Lokasi', profileData.location || '-']);
+      }
+      wsData.push([]);
+      
+      // Header row
+      wsData.push(['No', 'Nama Kapal', 'Tanggal', 'Dokumentasi', 'Dokumen Kerja']);
+      const headerRowIndex = wsData.length - 1;
+
+      // Data rows - we'll need extra height for images
+      const imageInserts: Array<{ url: string; col: number; row: number }> = [];
+      
+      filteredKapal.forEach((kapal, idx) => {
+        const photo = getPhoto(kapal.id);
+        const rowIndex = wsData.length;
+        
+        wsData.push([
+          idx + 1,
+          kapal.namaKapal,
+          format(new Date(kapal.tanggal), 'dd/MM/yyyy'),
+          photo?.dokumentasiUrl ? '📷' : '—',
+          photo?.dokumenKerjaUrl ? '📷' : '—',
+        ]);
+
+        if (photo?.dokumentasiUrl) {
+          imageInserts.push({ url: photo.dokumentasiUrl, col: 3, row: rowIndex });
+        }
+        if (photo?.dokumenKerjaUrl) {
+          imageInserts.push({ url: photo.dokumenKerjaUrl, col: 4, row: rowIndex });
+        }
+      });
+
+      const ws = XLSX.utils.aoa_to_sheet(wsData);
+
+      // Set column widths
+      ws['!cols'] = [
+        { wch: 5 },
+        { wch: 30 },
+        { wch: 15 },
+        { wch: 25 },
+        { wch: 25 },
+      ];
+
+      // Set row heights for image rows
+      ws['!rows'] = [];
+      for (let i = 0; i < wsData.length; i++) {
+        if (i >= headerRowIndex + 1) {
+          ws['!rows'][i] = { hpx: 80 }; // Height for image rows
+        }
+      }
+
+      // Merge title cell
+      ws['!merges'] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: 4 } }];
+
+      // Style header row with yellow background
+      // XLSX doesn't support styling in community edition, so we use cell comments or 
+      // apply styles through the s property
+      for (let c = 0; c <= 4; c++) {
+        const cellRef = XLSX.utils.encode_cell({ r: headerRowIndex, c });
+        if (!ws[cellRef]) ws[cellRef] = { v: '', t: 's' };
+        ws[cellRef].s = {
+          fill: { fgColor: { rgb: 'FFFF00' } },
+          font: { bold: true },
+          border: {
+            top: { style: 'thin', color: { rgb: '000000' } },
+            bottom: { style: 'thin', color: { rgb: '000000' } },
+            left: { style: 'thin', color: { rgb: '000000' } },
+            right: { style: 'thin', color: { rgb: '000000' } },
+          },
+          alignment: { horizontal: 'center' },
+        };
+      }
+
+      // Apply borders to all data cells
+      for (let r = headerRowIndex; r < wsData.length; r++) {
+        for (let c = 0; c <= 4; c++) {
+          const cellRef = XLSX.utils.encode_cell({ r, c });
+          if (!ws[cellRef]) ws[cellRef] = { v: '', t: 's' };
+          if (!ws[cellRef].s) ws[cellRef].s = {};
+          ws[cellRef].s = {
+            ...ws[cellRef].s,
+            border: {
+              top: { style: 'thin', color: { rgb: '000000' } },
+              bottom: { style: 'thin', color: { rgb: '000000' } },
+              left: { style: 'thin', color: { rgb: '000000' } },
+              right: { style: 'thin', color: { rgb: '000000' } },
+            },
+          };
+        }
+      }
+
+      // Fetch images and embed them
+      if (imageInserts.length > 0) {
+        const images: any[] = [];
+        for (const img of imageInserts) {
+          const base64 = await fetchImageAsBase64(img.url);
+          if (base64) {
+            images.push({
+              '!pos': { r: img.row, c: img.col, x: 5, y: 5, w: 150, h: 70 },
+              '!data': base64,
+              '!datatype': 'base64',
+              '!type': 'image/jpeg',
+            });
+          }
+        }
+        if (images.length > 0) {
+          ws['!images'] = images;
+        }
+      }
+
+      XLSX.utils.book_append_sheet(wb, ws, 'Laporan');
+      XLSX.writeFile(wb, `Laporan_Bulanan_${monthLabel.replace(/\s+/g, '_')}.xlsx`);
+      toast.success('Laporan berhasil diunduh');
+    } catch (err) {
+      console.error('Excel export error:', err);
+      toast.error('Gagal mengunduh laporan');
+    } finally {
+      setDownloading(false);
     }
-    wsData.push([]);
-    wsData.push(['No', 'Nama Kapal', 'Tanggal', 'Dokumentasi', 'Dokumen Kerja']);
-
-    filteredKapal.forEach((kapal, idx) => {
-      const photo = getPhoto(kapal.id);
-      wsData.push([
-        idx + 1,
-        kapal.namaKapal,
-        format(new Date(kapal.tanggal), 'dd/MM/yyyy'),
-        photo?.dokumentasiUrl ? 'Ada ✓' : '— Belum ada',
-        photo?.dokumenKerjaUrl ? 'Ada ✓' : '— Belum ada',
-      ]);
-    });
-
-    const ws = XLSX.utils.aoa_to_sheet(wsData);
-
-    // Set column widths
-    ws['!cols'] = [
-      { wch: 5 },
-      { wch: 30 },
-      { wch: 15 },
-      { wch: 20 },
-      { wch: 20 },
-    ];
-
-    // Merge title cell
-    ws['!merges'] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: 4 } }];
-
-    XLSX.utils.book_append_sheet(wb, ws, 'Laporan');
-    XLSX.writeFile(wb, `Laporan_Bulanan_${monthLabel.replace(/\s+/g, '_')}.xlsx`);
   };
 
   if (loading) {
@@ -180,8 +291,8 @@ const LaporanBulanan = () => {
           <Button variant="outline" onClick={() => setPreviewOpen(true)} disabled={filteredKapal.length === 0} className="gap-1.5">
             <Eye className="w-4 h-4" /> Preview
           </Button>
-          <Button onClick={handleDownloadExcel} disabled={filteredKapal.length === 0} className="gap-1.5">
-            <FileSpreadsheet className="w-4 h-4" /> Excel
+          <Button onClick={handleDownloadExcel} disabled={filteredKapal.length === 0 || downloading} className="gap-1.5">
+            {downloading ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileSpreadsheet className="w-4 h-4" />} Excel
           </Button>
         </div>
 
@@ -265,8 +376,8 @@ const LaporanBulanan = () => {
             </table>
           </ScrollArea>
           <div className="flex justify-end pt-2">
-            <Button onClick={handleDownloadExcel} className="gap-1.5">
-              <FileSpreadsheet className="w-4 h-4" /> Download Excel
+            <Button onClick={handleDownloadExcel} disabled={downloading} className="gap-1.5">
+              {downloading ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileSpreadsheet className="w-4 h-4" />} Download Excel
             </Button>
           </div>
         </DialogContent>
