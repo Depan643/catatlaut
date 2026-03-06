@@ -59,10 +59,12 @@ export const KapalProvider: React.FC<{ children: ReactNode }> = ({ children }) =
 
       if (kapalError) throw kapalError;
 
+      // Fetch all entries (default limit is 1000, so we set higher)
       const { data: entriesData, error: entriesError } = await supabase
         .from('entries')
         .select('*')
-        .eq('user_id', user.id);
+        .eq('user_id', user.id)
+        .limit(10000);
 
       if (entriesError) throw entriesError;
 

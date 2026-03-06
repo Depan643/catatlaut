@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useKapal } from '@/contexts/KapalContext';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
-import { ArrowLeft, FileSpreadsheet, Eye, Loader2, Ship, Image } from 'lucide-react';
+import { ArrowLeft, FileSpreadsheet, FileText, Eye, Loader2, Ship, Image } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -11,6 +11,8 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { format, startOfMonth, endOfMonth } from 'date-fns';
 import { id as idLocale } from 'date-fns/locale';
 import * as XLSX from 'xlsx';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 import { toast } from 'sonner';
 
 interface KapalPhoto {
@@ -32,6 +34,7 @@ const LaporanBulanan = () => {
   const [previewOpen, setPreviewOpen] = useState(false);
   const [profileData, setProfileData] = useState<{ display_name: string; location: string } | null>(null);
   const [downloading, setDownloading] = useState(false);
+  const [downloadingPdf, setDownloadingPdf] = useState(false);
 
   useEffect(() => {
     if (!user) return;
@@ -97,18 +100,14 @@ const LaporanBulanan = () => {
 
   const getPhoto = (kapalId: string) => photos.find(p => p.kapalId === kapalId);
 
-  // Helper to fetch image as base64
-  const fetchImageAsBase64 = async (url: string): Promise<string | null> => {
+  const fetchImageAsBase64Full = async (url: string): Promise<string | null> => {
     try {
       const response = await fetch(url);
       if (!response.ok) return null;
       const blob = await response.blob();
       return new Promise((resolve) => {
         const reader = new FileReader();
-        reader.onloadend = () => {
-          const base64 = (reader.result as string).split(',')[1];
-          resolve(base64);
-        };
+        reader.onloadend = () => resolve(reader.result as string);
         reader.onerror = () => resolve(null);
         reader.readAsDataURL(blob);
       });
@@ -120,15 +119,12 @@ const LaporanBulanan = () => {
   const handleDownloadExcel = async () => {
     if (filteredKapal.length === 0) return;
     setDownloading(true);
-    
     try {
       const [y, m] = selectedMonth.split('-').map(Number);
       const monthLabel = format(new Date(y, m, 1), 'MMMM yyyy', { locale: idLocale });
 
       const wb = XLSX.utils.book_new();
       const wsData: any[][] = [];
-      
-      // Title
       wsData.push([`LAPORAN BULANAN - ${monthLabel.toUpperCase()}`]);
       wsData.push([]);
       if (profileData) {
@@ -136,120 +132,126 @@ const LaporanBulanan = () => {
         wsData.push(['Lokasi', profileData.location || '-']);
       }
       wsData.push([]);
-      
-      // Header row
       wsData.push(['No', 'Nama Kapal', 'Tanggal', 'Dokumentasi', 'Dokumen Kerja']);
       const headerRowIndex = wsData.length - 1;
 
-      // Data rows - we'll need extra height for images
-      const imageInserts: Array<{ url: string; col: number; row: number }> = [];
-      
       filteredKapal.forEach((kapal, idx) => {
         const photo = getPhoto(kapal.id);
-        const rowIndex = wsData.length;
-        
         wsData.push([
           idx + 1,
           kapal.namaKapal,
           format(new Date(kapal.tanggal), 'dd/MM/yyyy'),
-          photo?.dokumentasiUrl ? '📷' : '—',
-          photo?.dokumenKerjaUrl ? '📷' : '—',
+          photo?.dokumentasiUrl ? 'Ada foto' : '—',
+          photo?.dokumenKerjaUrl ? 'Ada foto' : '—',
         ]);
-
-        if (photo?.dokumentasiUrl) {
-          imageInserts.push({ url: photo.dokumentasiUrl, col: 3, row: rowIndex });
-        }
-        if (photo?.dokumenKerjaUrl) {
-          imageInserts.push({ url: photo.dokumenKerjaUrl, col: 4, row: rowIndex });
-        }
       });
 
       const ws = XLSX.utils.aoa_to_sheet(wsData);
-
-      // Set column widths
-      ws['!cols'] = [
-        { wch: 5 },
-        { wch: 30 },
-        { wch: 15 },
-        { wch: 25 },
-        { wch: 25 },
-      ];
-
-      // Set row heights for image rows
-      ws['!rows'] = [];
-      for (let i = 0; i < wsData.length; i++) {
-        if (i >= headerRowIndex + 1) {
-          ws['!rows'][i] = { hpx: 80 }; // Height for image rows
-        }
-      }
-
-      // Merge title cell
+      ws['!cols'] = [{ wch: 5 }, { wch: 30 }, { wch: 15 }, { wch: 20 }, { wch: 20 }];
       ws['!merges'] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: 4 } }];
-
-      // Style header row with yellow background
-      // XLSX doesn't support styling in community edition, so we use cell comments or 
-      // apply styles through the s property
-      for (let c = 0; c <= 4; c++) {
-        const cellRef = XLSX.utils.encode_cell({ r: headerRowIndex, c });
-        if (!ws[cellRef]) ws[cellRef] = { v: '', t: 's' };
-        ws[cellRef].s = {
-          fill: { fgColor: { rgb: 'FFFF00' } },
-          font: { bold: true },
-          border: {
-            top: { style: 'thin', color: { rgb: '000000' } },
-            bottom: { style: 'thin', color: { rgb: '000000' } },
-            left: { style: 'thin', color: { rgb: '000000' } },
-            right: { style: 'thin', color: { rgb: '000000' } },
-          },
-          alignment: { horizontal: 'center' },
-        };
-      }
-
-      // Apply borders to all data cells
-      for (let r = headerRowIndex; r < wsData.length; r++) {
-        for (let c = 0; c <= 4; c++) {
-          const cellRef = XLSX.utils.encode_cell({ r, c });
-          if (!ws[cellRef]) ws[cellRef] = { v: '', t: 's' };
-          if (!ws[cellRef].s) ws[cellRef].s = {};
-          ws[cellRef].s = {
-            ...ws[cellRef].s,
-            border: {
-              top: { style: 'thin', color: { rgb: '000000' } },
-              bottom: { style: 'thin', color: { rgb: '000000' } },
-              left: { style: 'thin', color: { rgb: '000000' } },
-              right: { style: 'thin', color: { rgb: '000000' } },
-            },
-          };
-        }
-      }
-
-      // Fetch images and embed them
-      if (imageInserts.length > 0) {
-        const images: any[] = [];
-        for (const img of imageInserts) {
-          const base64 = await fetchImageAsBase64(img.url);
-          if (base64) {
-            images.push({
-              '!pos': { r: img.row, c: img.col, x: 5, y: 5, w: 150, h: 70 },
-              '!data': base64,
-              '!datatype': 'base64',
-              '!type': 'image/jpeg',
-            });
-          }
-        }
-        if (images.length > 0) {
-          ws['!images'] = images;
-        }
-      }
 
       XLSX.utils.book_append_sheet(wb, ws, 'Laporan');
       XLSX.writeFile(wb, `Laporan_Bulanan_${monthLabel.replace(/\s+/g, '_')}.xlsx`);
-      toast.success('Laporan berhasil diunduh');
+      toast.success('Excel berhasil diunduh (tanpa foto). Gunakan PDF untuk laporan dengan foto.');
     } catch (err) {
       console.error('Excel export error:', err);
       toast.error('Gagal mengunduh laporan');
     } finally {
       setDownloading(false);
+    }
+  };
+
+  const handleDownloadPDF = async () => {
+    if (filteredKapal.length === 0) return;
+    setDownloadingPdf(true);
+    try {
+      const [y, m] = selectedMonth.split('-').map(Number);
+      const monthLabel = format(new Date(y, m, 1), 'MMMM yyyy', { locale: idLocale });
+
+      const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+
+      // Title
+      doc.setFontSize(16);
+      doc.setFont('helvetica', 'bold');
+      doc.text(`LAPORAN BULANAN - ${monthLabel.toUpperCase()}`, 148.5, 15, { align: 'center' });
+
+      if (profileData) {
+        doc.setFontSize(10);
+        doc.setFont('helvetica', 'normal');
+        doc.text(`Petugas: ${profileData.display_name || '-'}    |    Lokasi: ${profileData.location || '-'}`, 148.5, 22, { align: 'center' });
+      }
+
+      // Fetch all images as base64
+      const imageCache: Record<string, string | null> = {};
+      for (const kapal of filteredKapal) {
+        const photo = getPhoto(kapal.id);
+        if (photo?.dokumentasiUrl) {
+          imageCache[`dok_${kapal.id}`] = await fetchImageAsBase64Full(photo.dokumentasiUrl);
+        }
+        if (photo?.dokumenKerjaUrl) {
+          imageCache[`kerja_${kapal.id}`] = await fetchImageAsBase64Full(photo.dokumenKerjaUrl);
+        }
+      }
+
+      // Build table
+      const tableBody: any[][] = filteredKapal.map((kapal, idx) => [
+        idx + 1,
+        kapal.namaKapal,
+        format(new Date(kapal.tanggal), 'dd/MM/yyyy'),
+        '', // placeholder for image
+        '', // placeholder for image
+      ]);
+
+      autoTable(doc, {
+        startY: profileData ? 28 : 22,
+        head: [['No', 'Nama Kapal', 'Tanggal', 'Dokumentasi', 'Dokumen Kerja']],
+        body: tableBody,
+        headStyles: {
+          fillColor: [255, 255, 0],
+          textColor: [0, 0, 0],
+          fontStyle: 'bold',
+          halign: 'center',
+        },
+        columnStyles: {
+          0: { cellWidth: 12, halign: 'center' },
+          1: { cellWidth: 60 },
+          2: { cellWidth: 25, halign: 'center' },
+          3: { cellWidth: 70, halign: 'center' },
+          4: { cellWidth: 70, halign: 'center' },
+        },
+        styles: { fontSize: 9, cellPadding: 3, minCellHeight: 30 },
+        didDrawCell: (data: any) => {
+          if (data.section === 'body') {
+            const kapal = filteredKapal[data.row.index];
+            if (!kapal) return;
+
+            if (data.column.index === 3) {
+              const imgData = imageCache[`dok_${kapal.id}`];
+              if (imgData) {
+                try {
+                  doc.addImage(imgData, 'JPEG', data.cell.x + 2, data.cell.y + 2, 25, 20);
+                } catch { /* skip */ }
+              }
+            }
+            if (data.column.index === 4) {
+              const imgData = imageCache[`kerja_${kapal.id}`];
+              if (imgData) {
+                try {
+                  doc.addImage(imgData, 'JPEG', data.cell.x + 2, data.cell.y + 2, 25, 20);
+                } catch { /* skip */ }
+              }
+            }
+          }
+        },
+      });
+
+      doc.save(`Laporan_Bulanan_${monthLabel.replace(/\s+/g, '_')}.pdf`);
+      toast.success('PDF berhasil diunduh dengan foto');
+    } catch (err) {
+      console.error('PDF export error:', err);
+      toast.error('Gagal mengunduh PDF');
+    } finally {
+      setDownloadingPdf(false);
     }
   };
 
@@ -279,9 +281,9 @@ const LaporanBulanan = () => {
       </header>
 
       <main className="container py-4 space-y-4">
-        <div className="flex gap-2">
+        <div className="flex gap-2 flex-wrap">
           <Select value={selectedMonth} onValueChange={setSelectedMonth}>
-            <SelectTrigger className="flex-1"><SelectValue /></SelectTrigger>
+            <SelectTrigger className="flex-1 min-w-[140px]"><SelectValue /></SelectTrigger>
             <SelectContent>
               {monthOptions.map(opt => (
                 <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
@@ -291,8 +293,11 @@ const LaporanBulanan = () => {
           <Button variant="outline" onClick={() => setPreviewOpen(true)} disabled={filteredKapal.length === 0} className="gap-1.5">
             <Eye className="w-4 h-4" /> Preview
           </Button>
-          <Button onClick={handleDownloadExcel} disabled={filteredKapal.length === 0 || downloading} className="gap-1.5">
+          <Button variant="outline" onClick={handleDownloadExcel} disabled={filteredKapal.length === 0 || downloading} className="gap-1.5">
             {downloading ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileSpreadsheet className="w-4 h-4" />} Excel
+          </Button>
+          <Button onClick={handleDownloadPDF} disabled={filteredKapal.length === 0 || downloadingPdf} className="gap-1.5">
+            {downloadingPdf ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileText className="w-4 h-4" />} PDF + Foto
           </Button>
         </div>
 
@@ -375,9 +380,12 @@ const LaporanBulanan = () => {
               </tbody>
             </table>
           </ScrollArea>
-          <div className="flex justify-end pt-2">
-            <Button onClick={handleDownloadExcel} disabled={downloading} className="gap-1.5">
-              {downloading ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileSpreadsheet className="w-4 h-4" />} Download Excel
+          <div className="flex justify-end gap-2 pt-2">
+            <Button variant="outline" onClick={handleDownloadExcel} disabled={downloading} className="gap-1.5">
+              {downloading ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileSpreadsheet className="w-4 h-4" />} Excel
+            </Button>
+            <Button onClick={handleDownloadPDF} disabled={downloadingPdf} className="gap-1.5">
+              {downloadingPdf ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileText className="w-4 h-4" />} PDF + Foto
             </Button>
           </div>
         </DialogContent>

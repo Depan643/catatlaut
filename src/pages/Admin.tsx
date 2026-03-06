@@ -35,7 +35,7 @@ import {
   PieChart, Pie, Cell, Legend,
 } from 'recharts';
 import * as XLSX from 'xlsx';
-import { ChatPanel } from '@/components/ChatPanel';
+
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar as CalendarComponent } from '@/components/ui/calendar';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -1481,40 +1481,56 @@ const Admin = () => {
 
           {/* === DATABASE TAB === */}
           <TabsContent value="database" className="space-y-4">
-            {/* Tech Stack Info */}
+            {/* Server & API Info */}
             <Card>
               <CardHeader className="pb-2">
                 <CardTitle className="text-sm font-bold flex items-center gap-2">
-                  <Database className="w-4 h-4 text-primary" /> Teknologi yang Digunakan
+                  <Database className="w-4 h-4 text-primary" /> Server & API
                 </CardTitle>
+                <CardDescription className="text-xs">Informasi server dan API yang digunakan aplikasi</CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 gap-3">
                   <div className="p-3 rounded-lg bg-primary/5 border border-primary/10">
-                    <p className="text-xs font-bold text-primary mb-1">Database</p>
-                    <p className="text-sm font-semibold">PostgreSQL</p>
-                    <p className="text-[10px] text-muted-foreground">via Lovable Cloud</p>
+                    <p className="text-xs font-bold text-primary mb-1">🖥️ Server</p>
+                    <p className="text-sm font-semibold">Lovable Cloud</p>
+                    <p className="text-[10px] text-muted-foreground mt-1">Hosting & deployment otomatis oleh Lovable. Serverless architecture dengan edge computing.</p>
                   </div>
                   <div className="p-3 rounded-lg bg-accent/5 border border-accent/10">
-                    <p className="text-xs font-bold text-accent mb-1">API</p>
-                    <p className="text-sm font-semibold">REST + Realtime</p>
-                    <p className="text-[10px] text-muted-foreground">PostgREST + WebSocket</p>
+                    <p className="text-xs font-bold text-accent mb-1">🗄️ Database</p>
+                    <p className="text-sm font-semibold">PostgreSQL</p>
+                    <p className="text-[10px] text-muted-foreground mt-1">Database relasional dengan Row-Level Security (RLS) untuk proteksi data per pengguna.</p>
                   </div>
                   <div className="p-3 rounded-lg bg-green-500/5 border border-green-500/10">
-                    <p className="text-xs font-bold text-green-600 mb-1">Auth</p>
-                    <p className="text-sm font-semibold">JWT Auth</p>
-                    <p className="text-[10px] text-muted-foreground">Email + Password</p>
+                    <p className="text-xs font-bold text-green-600 dark:text-green-400 mb-1">🔌 API</p>
+                    <p className="text-sm font-semibold">REST API (PostgREST)</p>
+                    <p className="text-[10px] text-muted-foreground mt-1">Auto-generated REST API dari skema database. Mendukung filter, sorting, pagination, dan realtime subscription via WebSocket.</p>
                   </div>
                   <div className="p-3 rounded-lg bg-blue-500/5 border border-blue-500/10">
-                    <p className="text-xs font-bold text-blue-600 mb-1">Storage</p>
-                    <p className="text-sm font-semibold">Object Storage</p>
-                    <p className="text-[10px] text-muted-foreground">S3-compatible</p>
+                    <p className="text-xs font-bold text-blue-600 dark:text-blue-400 mb-1">🔐 Autentikasi</p>
+                    <p className="text-sm font-semibold">JWT (JSON Web Token)</p>
+                    <p className="text-[10px] text-muted-foreground mt-1">Email & password authentication dengan session management otomatis dan token refresh.</p>
+                  </div>
+                  <div className="p-3 rounded-lg bg-orange-500/5 border border-orange-500/10">
+                    <p className="text-xs font-bold text-orange-600 dark:text-orange-400 mb-1">📦 Storage</p>
+                    <p className="text-sm font-semibold">S3-Compatible Object Storage</p>
+                    <p className="text-[10px] text-muted-foreground mt-1">Penyimpanan file untuk foto kapal, avatar, dan lampiran. Mendukung signed URLs untuk akses privat.</p>
+                  </div>
+                  <div className="p-3 rounded-lg bg-purple-500/5 border border-purple-500/10">
+                    <p className="text-xs font-bold text-purple-600 dark:text-purple-400 mb-1">⚡ Edge Functions</p>
+                    <p className="text-sm font-semibold">Deno Runtime</p>
+                    <p className="text-[10px] text-muted-foreground mt-1">Serverless functions untuk logika backend kustom seperti manajemen admin.</p>
+                  </div>
+                  <div className="p-3 rounded-lg bg-pink-500/5 border border-pink-500/10">
+                    <p className="text-xs font-bold text-pink-600 dark:text-pink-400 mb-1">🌐 Frontend</p>
+                    <p className="text-sm font-semibold">React + Vite + TypeScript</p>
+                    <p className="text-[10px] text-muted-foreground mt-1">SPA (Single Page Application) dengan Tailwind CSS, Radix UI, dan TanStack Query. PWA-ready.</p>
                   </div>
                 </div>
               </CardContent>
             </Card>
 
-            {/* Storage Usage */}
+            {/* Storage Usage - Enhanced */}
             <Card>
               <CardHeader className="pb-2">
                 <div className="flex items-center justify-between">
@@ -1527,15 +1543,45 @@ const Admin = () => {
                 </div>
               </CardHeader>
               <CardContent className="space-y-3">
-                {storageUsage.length > 0 ? storageUsage.map(bucket => (
-                  <div key={bucket.bucketName} className="space-y-1">
-                    <div className="flex items-center justify-between text-sm">
-                      <span className="font-medium font-mono">{bucket.bucketName}</span>
-                      <span className="text-muted-foreground text-xs">{bucket.fileCount} file · {formatBytes(bucket.totalSize)}</span>
+                {storageUsage.length > 0 ? (
+                  <>
+                    {/* Total summary */}
+                    <div className="p-3 rounded-lg bg-primary/5 border border-primary/10">
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="text-xs font-bold">Total Storage</span>
+                        <span className="text-sm font-bold text-primary">{formatBytes(storageUsage.reduce((s, b) => s + b.totalSize, 0))}</span>
+                      </div>
+                      <div className="flex items-center justify-between text-[10px] text-muted-foreground">
+                        <span>{storageUsage.reduce((s, b) => s + b.fileCount, 0)} file total</span>
+                        <span>{storageUsage.length} bucket</span>
+                      </div>
                     </div>
-                    <Progress value={Math.min((bucket.totalSize / (1024 * 1024 * 100)) * 100, 100)} className="h-1.5" />
-                  </div>
-                )) : (
+
+                    {storageUsage.map(bucket => (
+                      <div key={bucket.bucketName} className="space-y-1.5 p-3 rounded-lg border border-border">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <span className="text-sm">{bucket.bucketName === 'avatars' ? '👤' : bucket.bucketName === 'kapal-photos' ? '📸' : '📎'}</span>
+                            <span className="font-medium text-sm font-mono">{bucket.bucketName}</span>
+                          </div>
+                          <Badge variant={bucket.bucketName === 'kapal-photos' ? 'destructive' : 'secondary'} className="text-[9px]">
+                            {bucket.bucketName === 'kapal-photos' ? 'Privat' : 'Publik'}
+                          </Badge>
+                        </div>
+                        <div className="flex items-center justify-between text-xs text-muted-foreground">
+                          <span>{bucket.fileCount} file</span>
+                          <span className="font-semibold">{formatBytes(bucket.totalSize)}</span>
+                        </div>
+                        <Progress value={Math.min((bucket.totalSize / (1024 * 1024 * 100)) * 100, 100)} className="h-1.5" />
+                        <p className="text-[9px] text-muted-foreground">
+                          {bucket.bucketName === 'avatars' && 'Foto profil pengguna'}
+                          {bucket.bucketName === 'kapal-photos' && 'Foto dokumentasi & dokumen kerja kapal'}
+                          {bucket.bucketName === 'chat-attachments' && 'Lampiran chat (gambar)'}
+                        </p>
+                      </div>
+                    ))}
+                  </>
+                ) : (
                   <p className="text-xs text-muted-foreground text-center py-4">
                     {loadingStorage ? 'Memuat...' : 'Klik Refresh untuk melihat penggunaan storage'}
                   </p>
@@ -1546,141 +1592,27 @@ const Admin = () => {
                   <p className="text-xs font-bold text-muted-foreground mb-2">Penggunaan Database</p>
                   <div className="grid grid-cols-2 gap-2">
                     {[
-                      { name: 'profiles', count: users.length, icon: '👤' },
-                      { name: 'kapal_data', count: kapalData.length, icon: '🚢' },
-                      { name: 'entries', count: entries.length, icon: '📦' },
-                      { name: 'activity_logs', count: activityLogs.length, icon: '📋' },
-                      { name: 'user_roles', count: userRoles.length, icon: '🛡️' },
+                      { name: 'profiles', count: users.length, icon: '👤', desc: 'Profil pengguna' },
+                      { name: 'kapal_data', count: kapalData.length, icon: '🚢', desc: 'Data kapal' },
+                      { name: 'entries', count: entries.length, icon: '📦', desc: 'Entri pendataan' },
+                      { name: 'activity_logs', count: activityLogs.length, icon: '📋', desc: 'Log aktivitas' },
+                      { name: 'user_roles', count: userRoles.length, icon: '🛡️', desc: 'Role pengguna' },
+                      { name: 'fish_species', count: 0, icon: '🐟', desc: 'Jenis ikan' },
                     ].map(t => (
-                      <div key={t.name} className="flex items-center gap-2 p-2 rounded-lg bg-muted/50">
-                        <span>{t.icon}</span>
+                      <div key={t.name} className="flex items-center gap-2 p-2.5 rounded-lg bg-muted/50 border border-border/50">
+                        <span className="text-lg">{t.icon}</span>
                         <div className="flex-1 min-w-0">
                           <p className="text-xs font-mono font-semibold truncate">{t.name}</p>
-                          <p className="text-xs text-muted-foreground">{t.count} baris</p>
+                          <p className="text-[10px] text-muted-foreground">{t.desc}</p>
+                          <p className="text-xs font-bold text-primary">{t.count === 0 ? '—' : `${t.count} baris`}</p>
                         </div>
                       </div>
                     ))}
                   </div>
                 </div>
-              </CardContent>
-            </Card>
 
-            {/* Schema */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-sm font-bold flex items-center gap-2">
-                  <Hash className="w-4 h-4 text-primary" /> Struktur Database
-                </CardTitle>
-                <CardDescription className="text-xs">Tabel dan kolom yang digunakan aplikasi</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                {[
-                  {
-                    name: 'profiles', icon: '👤', desc: 'Data profil pengguna',
-                    stats: `${users.length} baris`,
-                    columns: [
-                      { name: 'user_id', type: 'uuid', desc: 'ID pengguna' },
-                      { name: 'display_name', type: 'text', desc: 'Nama tampilan' },
-                      { name: 'email', type: 'text', desc: 'Email' },
-                      { name: 'username', type: 'text', desc: 'Username unik' },
-                      { name: 'avatar_url', type: 'text', desc: 'URL foto profil' },
-                      { name: 'phone', type: 'text', desc: 'Nomor telepon' },
-                      { name: 'location', type: 'text', desc: 'Lokasi' },
-                      { name: 'last_seen', type: 'timestamptz', desc: 'Terakhir online' },
-                    ]
-                  },
-                  {
-                    name: 'kapal_data', icon: '🚢', desc: 'Data pendataan kapal',
-                    stats: `${kapalData.length} baris`,
-                    columns: [
-                      { name: 'id', type: 'uuid', desc: 'ID kapal' },
-                      { name: 'user_id', type: 'uuid', desc: 'ID petugas pendata' },
-                      { name: 'nama_kapal', type: 'text', desc: 'Nama kapal' },
-                      { name: 'jenis_pendataan', type: 'text', desc: 'ikan / cumi' },
-                      { name: 'tanggal', type: 'timestamptz', desc: 'Tanggal pendataan' },
-                      { name: 'tanda_selar_gt', type: 'text', desc: 'GT kapal' },
-                      { name: 'tanda_selar_no', type: 'text', desc: 'Nomor selar' },
-                      { name: 'tanda_selar_huruf', type: 'text', desc: 'Huruf selar' },
-                      { name: 'alat_tangkap', type: 'text', desc: 'Alat tangkap' },
-                      { name: 'posisi_dermaga', type: 'text', desc: 'Posisi dermaga' },
-                      { name: 'done_pipp', type: 'boolean', desc: 'Status PIPP' },
-                      { name: 'notes', type: 'text', desc: 'Catatan' },
-                    ]
-                  },
-                  {
-                    name: 'entries', icon: '📦', desc: 'Data entri berat ikan/cumi',
-                    stats: `${entries.length} baris`,
-                    columns: [
-                      { name: 'kapal_id', type: 'uuid', desc: 'FK → kapal_data' },
-                      { name: 'jenis', type: 'text', desc: 'Jenis ikan/cumi' },
-                      { name: 'berat', type: 'numeric', desc: 'Berat (kg)' },
-                      { name: 'waktu_input', type: 'timestamptz', desc: 'Waktu input' },
-                    ]
-                  },
-                  {
-                    name: 'chat_messages', icon: '💬', desc: 'Pesan chat',
-                    stats: '',
-                    columns: [
-                      { name: 'sender_id', type: 'uuid', desc: 'Pengirim' },
-                      { name: 'receiver_id', type: 'uuid', desc: 'Penerima (null=grup)' },
-                      { name: 'message', type: 'text', desc: 'Isi pesan' },
-                      { name: 'is_group', type: 'boolean', desc: 'Pesan grup' },
-                      { name: 'reply_to', type: 'uuid', desc: 'Balasan ke pesan' },
-                      { name: 'reactions', type: 'jsonb', desc: 'Reaksi emoji' },
-                      { name: 'read_at', type: 'timestamptz', desc: 'Dibaca' },
-                    ]
-                  },
-                  {
-                    name: 'user_roles', icon: '🛡️', desc: 'Role pengguna',
-                    stats: `${userRoles.length} baris`,
-                    columns: [
-                      { name: 'user_id', type: 'uuid', desc: 'ID pengguna' },
-                      { name: 'role', type: 'app_role', desc: 'admin / user' },
-                    ]
-                  },
-                  {
-                    name: 'activity_logs', icon: '📋', desc: 'Log aktivitas',
-                    stats: `${activityLogs.length}+ baris`,
-                    columns: [
-                      { name: 'user_id', type: 'uuid', desc: 'Pelaku' },
-                      { name: 'action', type: 'text', desc: 'Jenis aksi' },
-                      { name: 'details', type: 'jsonb', desc: 'Detail aksi' },
-                    ]
-                  },
-                ].map(table => (
-                  <div key={table.name} className="border rounded-xl overflow-hidden">
-                    <div className="p-3 bg-muted/30 flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <span className="text-lg">{table.icon}</span>
-                        <div>
-                          <p className="font-semibold text-sm font-mono">{table.name}</p>
-                          <p className="text-[10px] text-muted-foreground">{table.desc}</p>
-                        </div>
-                      </div>
-                      {table.stats && <Badge variant="secondary" className="text-[10px]">{table.stats}</Badge>}
-                    </div>
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead className="text-[10px] font-bold">Kolom</TableHead>
-                          <TableHead className="text-[10px] font-bold">Tipe</TableHead>
-                          <TableHead className="text-[10px] font-bold">Keterangan</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {table.columns.map(col => (
-                          <TableRow key={col.name}>
-                            <TableCell className="text-xs font-mono text-primary py-1.5">{col.name}</TableCell>
-                            <TableCell className="py-1.5"><Badge variant="outline" className="text-[9px] font-mono">{col.type}</Badge></TableCell>
-                            <TableCell className="text-xs text-muted-foreground py-1.5">{col.desc}</TableCell>
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-                  </div>
-                ))}
-
-                <Card className="p-4 bg-primary/5 border-primary/20">
+                {/* Security info */}
+                <Card className="p-4 bg-primary/5 border-primary/20 mt-3">
                   <div className="flex items-start gap-3">
                     <Shield className="w-5 h-5 text-primary mt-0.5 shrink-0" />
                     <div>
@@ -1688,7 +1620,8 @@ const Admin = () => {
                       <ul className="text-xs text-muted-foreground mt-1 space-y-0.5">
                         <li>• Semua tabel dilindungi RLS (Row-Level Security)</li>
                         <li>• Petugas hanya akses data sendiri, Admin akses penuh</li>
-                        <li>• Storage: avatars (publik), kapal-photos (privat), chat-attachments (publik)</li>
+                        <li>• Storage: avatars (publik), kapal-photos (privat)</li>
+                        <li>• JWT token dengan auto-refresh & session persistence</li>
                       </ul>
                     </div>
                   </div>

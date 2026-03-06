@@ -19,11 +19,6 @@ export const BeratInput: React.FC<BeratInputProps> = ({ selectedJenis, onConfirm
 
   return (
     <div className="space-y-4">
-      <div className="bg-card rounded-xl p-4 border border-border">
-        <div className="text-sm text-muted-foreground mb-2">Jenis:</div>
-        <div className="text-lg font-bold text-primary">{selectedJenis}</div>
-      </div>
-
       <NumpadKeyboard
         value={value}
         onChange={setValue}
