@@ -191,18 +191,33 @@ const Admin = () => {
   const fetchAllData = async () => {
     setLoading(true);
     try {
-      const [profilesRes, kapalRes, entriesRes, logsRes, rolesRes, roleNotesRes] = await Promise.all([
+      const [profilesRes, kapalRes, logsRes, rolesRes, roleNotesRes] = await Promise.all([
         supabase.from('profiles').select('user_id, display_name, email, location, phone, avatar_url, created_at, username, bio'),
         supabase.from('kapal_data').select('*').order('created_at', { ascending: false }),
-        supabase.from('entries').select('*'),
         supabase.from('activity_logs').select('*').order('created_at', { ascending: false }).limit(500),
         supabase.from('user_roles').select('*'),
         supabase.from('role_notes').select('*'),
       ]);
 
+      // Fetch ALL entries with pagination
+      const allEntries: any[] = [];
+      let from = 0;
+      const batchSize = 1000;
+      while (true) {
+        const { data: batch, error: batchErr } = await supabase
+          .from('entries')
+          .select('*')
+          .range(from, from + batchSize - 1);
+        if (batchErr) throw batchErr;
+        if (!batch || batch.length === 0) break;
+        allEntries.push(...batch);
+        if (batch.length < batchSize) break;
+        from += batchSize;
+      }
+
       setUsers((profilesRes.data || []) as UserProfile[]);
       setKapalData(kapalRes.data as KapalRow[] || []);
-      setEntries(entriesRes.data || []);
+      setEntries(allEntries);
       setActivityLogs(logsRes.data || []);
       setUserRoles(rolesRes.data || []);
       setRoleNotes((roleNotesRes.data || []) as RoleNote[]);
