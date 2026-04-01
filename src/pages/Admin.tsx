@@ -613,6 +613,56 @@ const Admin = () => {
     }
   };
 
+  const handleAddPetugas = async () => {
+    if (!newPetugasForm.email || !newPetugasForm.password) {
+      toast.error('Email dan password wajib diisi');
+      return;
+    }
+    setAddingPetugas(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('create-admin', {
+        body: { email: newPetugasForm.email, password: newPetugasForm.password, display_name: newPetugasForm.display_name },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      toast.success(`Petugas ${newPetugasForm.email} berhasil ditambahkan`);
+      setShowAddPetugas(false);
+      setNewPetugasForm({ email: '', password: '', display_name: '' });
+      fetchAllData();
+    } catch (err: any) {
+      console.error('Add petugas error:', err);
+      toast.error(err.message || 'Gagal menambahkan petugas');
+    } finally {
+      setAddingPetugas(false);
+    }
+  };
+
+  const handleDeletePetugas = async () => {
+    if (!deletePetugasTarget) return;
+    try {
+      // Delete all user data
+      const userId = deletePetugasTarget.user_id;
+      const userKapals = kapalData.filter(k => k.user_id === userId);
+      for (const k of userKapals) {
+        await supabase.from('entries').delete().eq('kapal_id', k.id);
+      }
+      await supabase.from('kapal_data').delete().eq('user_id', userId);
+      await supabase.from('user_roles').delete().eq('user_id', userId);
+      await supabase.from('profiles').delete().eq('user_id', userId);
+      await supabase.from('activity_logs').insert({
+        user_id: user?.id, user_email: user?.email,
+        action: 'admin_delete_user',
+        details: { target_user_id: userId, target_email: deletePetugasTarget.email },
+      });
+      toast.success('Petugas berhasil dihapus');
+      setDeletePetugasTarget(null);
+      fetchAllData();
+    } catch (err: any) {
+      console.error('Delete petugas error:', err);
+      toast.error('Gagal menghapus petugas');
+    }
+  };
+
   const handleSaveRoleNote = async (role: string) => {
     try {
       const { error } = await supabase.from('role_notes').upsert(
