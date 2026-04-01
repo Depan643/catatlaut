@@ -990,46 +990,53 @@ const Admin = () => {
                                 <span>GT.{k.tanda_selar_gt} No.{k.tanda_selar_no}/{k.tanda_selar_huruf}</span>
                               </div>
                               {kEntries.length > 0 ? (
-                                <div className="rounded-lg border overflow-hidden">
-                                  <Table>
-                                    <TableHeader>
-                                      <TableRow>
-                                        <TableHead className="text-xs">Jenis</TableHead>
-                                        <TableHead className="text-xs text-right">Berat (kg)</TableHead>
-                                        <TableHead className="text-xs text-right">Waktu</TableHead>
-                                        <TableHead className="text-xs w-20"></TableHead>
-                                      </TableRow>
-                                    </TableHeader>
-                                    <TableBody>
-                                      {kEntries.sort((a, b) => new Date(b.waktu_input).getTime() - new Date(a.waktu_input).getTime()).map(entry => (
-                                        <TableRow key={entry.id}>
-                                          <TableCell className="text-sm">{entry.jenis}</TableCell>
-                                          <TableCell className="text-sm font-medium text-right">{Number(entry.berat).toLocaleString('id-ID')}</TableCell>
-                                          <TableCell className="text-xs text-muted-foreground text-right">{format(new Date(entry.waktu_input), 'HH:mm')}</TableCell>
-                                          <TableCell>
-                                            <div className="flex gap-1 justify-end">
+                              {(() => {
+                                // Group entries by jenis
+                                const grouped = kEntries.reduce<Record<string, { jenis: string; totalBerat: number; count: number; entries: typeof kEntries }>>((acc, e) => {
+                                  if (!acc[e.jenis]) acc[e.jenis] = { jenis: e.jenis, totalBerat: 0, count: 0, entries: [] };
+                                  acc[e.jenis].totalBerat += Number(e.berat);
+                                  acc[e.jenis].count++;
+                                  acc[e.jenis].entries.push(e);
+                                  return acc;
+                                }, {});
+                                const sortedGroups = Object.values(grouped).sort((a, b) => b.totalBerat - a.totalBerat);
+                                return (
+                                  <div className="rounded-lg border overflow-hidden">
+                                    <Table>
+                                      <TableHeader>
+                                        <TableRow>
+                                          <TableHead className="text-xs">Jenis</TableHead>
+                                          <TableHead className="text-xs text-center">Timbangan</TableHead>
+                                          <TableHead className="text-xs text-right">Total (kg)</TableHead>
+                                          <TableHead className="text-xs w-16"></TableHead>
+                                        </TableRow>
+                                      </TableHeader>
+                                      <TableBody>
+                                        {sortedGroups.map(group => (
+                                          <TableRow key={group.jenis}>
+                                            <TableCell className="text-xs sm:text-sm font-medium">{group.jenis}</TableCell>
+                                            <TableCell className="text-xs text-center text-muted-foreground">{group.count}x</TableCell>
+                                            <TableCell className="text-xs sm:text-sm font-bold text-right">{group.totalBerat.toLocaleString('id-ID')}</TableCell>
+                                            <TableCell>
                                               <Button size="icon" variant="ghost" className="h-6 w-6"
                                                 onClick={() => {
-                                                  setEditingEntry(entry);
-                                                  setEditEntryForm({ jenis: entry.jenis, berat: String(entry.berat) });
+                                                  setEditingEntry(group.entries[0]);
+                                                  setEditEntryForm({ jenis: group.jenis, berat: String(group.totalBerat) });
                                                 }}>
                                                 <Edit className="w-3 h-3" />
                                               </Button>
-                                              <Button size="icon" variant="ghost" className="h-6 w-6 text-destructive"
-                                                onClick={() => setDeleteEntryTarget(entry)}>
-                                                <Trash2 className="w-3 h-3" />
-                                              </Button>
-                                            </div>
-                                          </TableCell>
-                                        </TableRow>
-                                      ))}
-                                    </TableBody>
-                                  </Table>
-                                  <div className="px-3 py-2 bg-muted/50 text-sm font-semibold flex justify-between">
-                                    <span>Total ({kEntries.length} entri)</span>
-                                    <span>{totalBerat.toLocaleString('id-ID')} kg</span>
+                                            </TableCell>
+                                          </TableRow>
+                                        ))}
+                                      </TableBody>
+                                    </Table>
+                                    <div className="px-3 py-2 bg-muted/50 text-xs sm:text-sm font-semibold flex justify-between">
+                                      <span>Total ({sortedGroups.length} jenis, {kEntries.length} timbangan)</span>
+                                      <span>{totalBerat.toLocaleString('id-ID')} kg</span>
+                                    </div>
                                   </div>
-                                </div>
+                                );
+                              })()}
                               ) : (
                                 <p className="text-xs text-muted-foreground text-center py-4">Belum ada entri</p>
                               )}
