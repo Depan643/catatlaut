@@ -47,12 +47,13 @@ const Index = () => {
     jenisPendataan: 'ikan' | 'cumi';
     alatTangkap: string;
     posisiDermaga: string;
+    tanggalBongkar?: Date;
   }) => {
     setIsSubmitting(true);
     try {
       const newKapal = await addKapal({
         ...data,
-        tanggal: new Date(),
+        tanggal: data.tanggalBongkar || new Date(),
         alatTangkap: data.alatTangkap,
         posisiDermaga: data.posisiDermaga,
       });

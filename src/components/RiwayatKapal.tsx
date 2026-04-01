@@ -187,14 +187,10 @@ export const RiwayatKapal: React.FC<RiwayatKapalProps> = ({
                   {kapal.alatTangkap && (
                     <p className="text-xs text-muted-foreground">🎣 {kapal.alatTangkap}</p>
                   )}
-              <div className="flex items-center gap-3 mt-2 text-sm">
+              <div className="flex items-center gap-3 mt-2 text-xs sm:text-sm flex-wrap">
                     <span className="text-muted-foreground">{formatDateLabel(new Date(kapal.tanggal))}</span>
-                    {!kapal.donePIPP && (
-                      <>
-                        <span className="font-semibold text-foreground">{getTotalBerat(kapal).toLocaleString('id-ID')} kg</span>
-                        <span className="text-muted-foreground">({kapal.entries.length} {t.entri})</span>
-                      </>
-                    )}
+                    <span className="font-semibold text-foreground">{getTotalBerat(kapal).toLocaleString('id-ID')} kg</span>
+                    <span className="text-muted-foreground">({kapal.entries.length} {t.entri})</span>
                     {kapal.donePIPP && (
                       <span className="text-success text-xs font-medium">🔒 Selesai</span>
                     )}

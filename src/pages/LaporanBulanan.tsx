@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useKapal } from '@/contexts/KapalContext';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
-import { ArrowLeft, FileSpreadsheet, FileText, Eye, Loader2, Ship, Image } from 'lucide-react';
+import { ArrowLeft, FileSpreadsheet, FileText, Eye, Loader2, Ship, Image, ArrowUpDown, FileDown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -35,6 +35,8 @@ const LaporanBulanan = () => {
   const [profileData, setProfileData] = useState<{ display_name: string; location: string } | null>(null);
   const [downloading, setDownloading] = useState(false);
   const [downloadingPdf, setDownloadingPdf] = useState(false);
+  const [downloadingWord, setDownloadingWord] = useState(false);
+  const [sortOrder, setSortOrder] = useState<'terbaru' | 'terlama'>('terbaru');
 
   useEffect(() => {
     if (!user) return;
@@ -63,11 +65,16 @@ const LaporanBulanan = () => {
     const [y, m] = selectedMonth.split('-').map(Number);
     const monthStart = startOfMonth(new Date(y, m, 1));
     const monthEnd = endOfMonth(new Date(y, m, 1));
-    return kapalList.filter(k => {
+    const filtered = kapalList.filter(k => {
       const d = new Date(k.tanggal);
       return d >= monthStart && d <= monthEnd;
     });
-  }, [kapalList, selectedMonth]);
+    return filtered.sort((a, b) => {
+      const dateA = new Date(a.tanggal).getTime();
+      const dateB = new Date(b.tanggal).getTime();
+      return sortOrder === 'terbaru' ? dateB - dateA : dateA - dateB;
+    });
+  }, [kapalList, selectedMonth, sortOrder]);
 
   useEffect(() => {
     if (!user || filteredKapal.length === 0) {
@@ -133,7 +140,6 @@ const LaporanBulanan = () => {
       }
       wsData.push([]);
       wsData.push(['No', 'Nama Kapal', 'Tanggal', 'Dokumentasi', 'Dokumen Kerja']);
-      const headerRowIndex = wsData.length - 1;
 
       filteredKapal.forEach((kapal, idx) => {
         const photo = getPhoto(kapal.id);
@@ -152,7 +158,7 @@ const LaporanBulanan = () => {
 
       XLSX.utils.book_append_sheet(wb, ws, 'Laporan');
       XLSX.writeFile(wb, `Laporan_Bulanan_${monthLabel.replace(/\s+/g, '_')}.xlsx`);
-      toast.success('Excel berhasil diunduh (tanpa foto). Gunakan PDF untuk laporan dengan foto.');
+      toast.success('Excel berhasil diunduh');
     } catch (err) {
       console.error('Excel export error:', err);
       toast.error('Gagal mengunduh laporan');
@@ -170,7 +176,6 @@ const LaporanBulanan = () => {
 
       const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
 
-      // Title
       doc.setFontSize(16);
       doc.setFont('helvetica', 'bold');
       doc.text(`LAPORAN BULANAN - ${monthLabel.toUpperCase()}`, 148.5, 15, { align: 'center' });
@@ -181,7 +186,6 @@ const LaporanBulanan = () => {
         doc.text(`Petugas: ${profileData.display_name || '-'}    |    Lokasi: ${profileData.location || '-'}`, 148.5, 22, { align: 'center' });
       }
 
-      // Fetch all images as base64
       const imageCache: Record<string, string | null> = {};
       for (const kapal of filteredKapal) {
         const photo = getPhoto(kapal.id);
@@ -193,13 +197,12 @@ const LaporanBulanan = () => {
         }
       }
 
-      // Build table
       const tableBody: any[][] = filteredKapal.map((kapal, idx) => [
         idx + 1,
         kapal.namaKapal,
         format(new Date(kapal.tanggal), 'dd/MM/yyyy'),
-        '', // placeholder for image
-        '', // placeholder for image
+        '',
+        '',
       ]);
 
       autoTable(doc, {
@@ -255,6 +258,75 @@ const LaporanBulanan = () => {
     }
   };
 
+  const handleDownloadWord = async () => {
+    if (filteredKapal.length === 0) return;
+    setDownloadingWord(true);
+    try {
+      const [y, m] = selectedMonth.split('-').map(Number);
+      const monthLabel = format(new Date(y, m, 1), 'MMMM yyyy', { locale: idLocale });
+
+      // Build HTML-based Word document with embedded images
+      let html = `
+        <html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40">
+        <head><meta charset="utf-8"><style>
+          body { font-family: Arial, sans-serif; }
+          table { border-collapse: collapse; width: 100%; }
+          th, td { border: 1px solid #333; padding: 6px 8px; text-align: center; font-size: 11px; }
+          th { background-color: #FFFF00; font-weight: bold; }
+          h1 { text-align: center; font-size: 16px; }
+          .info { text-align: center; font-size: 11px; margin-bottom: 12px; }
+          img { max-width: 120px; max-height: 90px; }
+        </style></head><body>
+        <h1>LAPORAN BULANAN - ${monthLabel.toUpperCase()}</h1>`;
+
+      if (profileData) {
+        html += `<p class="info">Petugas: ${profileData.display_name || '-'} &nbsp;|&nbsp; Lokasi: ${profileData.location || '-'}</p>`;
+      }
+
+      html += `<table><tr><th>No</th><th>Nama Kapal</th><th>Tanggal</th><th>Dokumentasi</th><th>Dokumen Kerja</th></tr>`;
+
+      for (let idx = 0; idx < filteredKapal.length; idx++) {
+        const kapal = filteredKapal[idx];
+        const photo = getPhoto(kapal.id);
+        let dokImg = '—';
+        let kerjaImg = '—';
+
+        if (photo?.dokumentasiUrl) {
+          const b64 = await fetchImageAsBase64Full(photo.dokumentasiUrl);
+          if (b64) dokImg = `<img src="${b64}" />`;
+        }
+        if (photo?.dokumenKerjaUrl) {
+          const b64 = await fetchImageAsBase64Full(photo.dokumenKerjaUrl);
+          if (b64) kerjaImg = `<img src="${b64}" />`;
+        }
+
+        html += `<tr>
+          <td>${idx + 1}</td>
+          <td style="text-align:left">${kapal.namaKapal}</td>
+          <td>${format(new Date(kapal.tanggal), 'dd/MM/yyyy')}</td>
+          <td>${dokImg}</td>
+          <td>${kerjaImg}</td>
+        </tr>`;
+      }
+
+      html += `</table></body></html>`;
+
+      const blob = new Blob(['\ufeff', html], { type: 'application/msword' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `Laporan_Bulanan_${monthLabel.replace(/\s+/g, '_')}.doc`;
+      a.click();
+      URL.revokeObjectURL(url);
+      toast.success('Word berhasil diunduh dengan foto');
+    } catch (err) {
+      console.error('Word export error:', err);
+      toast.error('Gagal mengunduh Word');
+    } finally {
+      setDownloadingWord(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
@@ -273,7 +345,7 @@ const LaporanBulanan = () => {
               <ArrowLeft className="w-5 h-5" />
             </Button>
             <div className="flex-1">
-              <h1 className="text-lg font-bold">Laporan Bulanan</h1>
+              <h1 className="text-base sm:text-lg font-bold">Laporan Bulanan</h1>
               <p className="text-xs opacity-80">{filteredKapal.length} kapal</p>
             </div>
           </div>
@@ -281,57 +353,74 @@ const LaporanBulanan = () => {
       </header>
 
       <main className="container py-4 space-y-4">
+        {/* Controls */}
         <div className="flex gap-2 flex-wrap">
           <Select value={selectedMonth} onValueChange={setSelectedMonth}>
-            <SelectTrigger className="flex-1 min-w-[140px]"><SelectValue /></SelectTrigger>
+            <SelectTrigger className="flex-1 min-w-[130px] h-9 text-xs sm:text-sm"><SelectValue /></SelectTrigger>
             <SelectContent>
               {monthOptions.map(opt => (
                 <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
               ))}
             </SelectContent>
           </Select>
-          <Button variant="outline" onClick={() => setPreviewOpen(true)} disabled={filteredKapal.length === 0} className="gap-1.5">
-            <Eye className="w-4 h-4" /> Preview
+          <Select value={sortOrder} onValueChange={(v) => setSortOrder(v as 'terbaru' | 'terlama')}>
+            <SelectTrigger className="w-[110px] h-9 text-xs sm:text-sm">
+              <ArrowUpDown className="w-3 h-3 mr-1" /><SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="terbaru">Terbaru</SelectItem>
+              <SelectItem value="terlama">Terlama</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+
+        {/* Action buttons */}
+        <div className="flex gap-2 flex-wrap">
+          <Button variant="outline" size="sm" onClick={() => setPreviewOpen(true)} disabled={filteredKapal.length === 0} className="gap-1 text-xs h-8">
+            <Eye className="w-3.5 h-3.5" /> Preview
           </Button>
-          <Button variant="outline" onClick={handleDownloadExcel} disabled={filteredKapal.length === 0 || downloading} className="gap-1.5">
-            {downloading ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileSpreadsheet className="w-4 h-4" />} Excel
+          <Button variant="outline" size="sm" onClick={handleDownloadExcel} disabled={filteredKapal.length === 0 || downloading} className="gap-1 text-xs h-8">
+            {downloading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <FileSpreadsheet className="w-3.5 h-3.5" />} Excel
           </Button>
-          <Button onClick={handleDownloadPDF} disabled={filteredKapal.length === 0 || downloadingPdf} className="gap-1.5">
-            {downloadingPdf ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileText className="w-4 h-4" />} PDF + Foto
+          <Button size="sm" onClick={handleDownloadPDF} disabled={filteredKapal.length === 0 || downloadingPdf} className="gap-1 text-xs h-8">
+            {downloadingPdf ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <FileText className="w-3.5 h-3.5" />} PDF
+          </Button>
+          <Button variant="outline" size="sm" onClick={handleDownloadWord} disabled={filteredKapal.length === 0 || downloadingWord} className="gap-1 text-xs h-8">
+            {downloadingWord ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <FileDown className="w-3.5 h-3.5" />} Word
           </Button>
         </div>
 
         {filteredKapal.length === 0 ? (
           <div className="text-center py-12 text-muted-foreground">
             <Ship className="w-16 h-16 mx-auto mb-3 opacity-30" />
-            <p>Belum ada data kapal di bulan ini</p>
+            <p className="text-sm">Belum ada data kapal di bulan ini</p>
           </div>
         ) : (
           <div className="space-y-2">
             {filteredKapal.map((kapal, idx) => {
               const photo = getPhoto(kapal.id);
               return (
-                <div key={kapal.id} className="card-elevated p-3 flex items-center gap-3">
-                  <div className="w-8 text-center text-sm font-bold text-muted-foreground">{idx + 1}</div>
+                <div key={kapal.id} className="card-elevated p-3 flex items-center gap-2 sm:gap-3">
+                  <div className="w-6 sm:w-8 text-center text-xs sm:text-sm font-bold text-muted-foreground">{idx + 1}</div>
                   <div className="flex-1 min-w-0">
-                    <p className="font-semibold text-foreground truncate">{kapal.namaKapal}</p>
-                    <p className="text-xs text-muted-foreground">
+                    <p className="font-semibold text-foreground truncate text-xs sm:text-sm">{kapal.namaKapal}</p>
+                    <p className="text-[10px] sm:text-xs text-muted-foreground">
                       {format(new Date(kapal.tanggal), 'dd MMM yyyy', { locale: idLocale })}
                     </p>
                   </div>
-                  <div className="flex gap-1.5">
+                  <div className="flex gap-1.5 shrink-0">
                     {photo?.dokumentasiUrl ? (
-                      <img src={photo.dokumentasiUrl} alt="Dokumentasi" className="w-10 h-10 rounded object-cover border border-border" />
+                      <img src={photo.dokumentasiUrl} alt="Dok" className="w-8 h-8 sm:w-10 sm:h-10 rounded object-cover border border-border" />
                     ) : (
-                      <div className="w-10 h-10 rounded bg-muted flex items-center justify-center">
-                        <Image className="w-4 h-4 text-muted-foreground/50" />
+                      <div className="w-8 h-8 sm:w-10 sm:h-10 rounded bg-muted flex items-center justify-center">
+                        <Image className="w-3 h-3 sm:w-4 sm:h-4 text-muted-foreground/50" />
                       </div>
                     )}
                     {photo?.dokumenKerjaUrl ? (
-                      <img src={photo.dokumenKerjaUrl} alt="Dokumen Kerja" className="w-10 h-10 rounded object-cover border border-border" />
+                      <img src={photo.dokumenKerjaUrl} alt="Kerja" className="w-8 h-8 sm:w-10 sm:h-10 rounded object-cover border border-border" />
                     ) : (
-                      <div className="w-10 h-10 rounded bg-muted flex items-center justify-center">
-                        <Image className="w-4 h-4 text-muted-foreground/50" />
+                      <div className="w-8 h-8 sm:w-10 sm:h-10 rounded bg-muted flex items-center justify-center">
+                        <Image className="w-3 h-3 sm:w-4 sm:h-4 text-muted-foreground/50" />
                       </div>
                     )}
                   </div>
@@ -345,16 +434,16 @@ const LaporanBulanan = () => {
       <Dialog open={previewOpen} onOpenChange={setPreviewOpen}>
         <DialogContent className="max-w-2xl max-h-[80vh]">
           <DialogHeader>
-            <DialogTitle>Preview Laporan Bulanan</DialogTitle>
+            <DialogTitle className="text-sm sm:text-base">Preview Laporan Bulanan</DialogTitle>
           </DialogHeader>
           <ScrollArea className="max-h-[60vh]">
-            <table className="w-full text-sm border-collapse">
+            <table className="w-full text-xs sm:text-sm border-collapse">
               <thead>
                 <tr style={{ backgroundColor: '#FFFF00' }}>
-                  <th className="p-2 border border-foreground/30 font-bold">No</th>
-                  <th className="p-2 border border-foreground/30 font-bold">Nama Kapal</th>
-                  <th className="p-2 border border-foreground/30 font-bold">Dokumentasi</th>
-                  <th className="p-2 border border-foreground/30 font-bold">Dokumen Kerja</th>
+                  <th className="p-1.5 sm:p-2 border border-foreground/30 font-bold">No</th>
+                  <th className="p-1.5 sm:p-2 border border-foreground/30 font-bold">Nama Kapal</th>
+                  <th className="p-1.5 sm:p-2 border border-foreground/30 font-bold">Dokumentasi</th>
+                  <th className="p-1.5 sm:p-2 border border-foreground/30 font-bold">Dok. Kerja</th>
                 </tr>
               </thead>
               <tbody>
@@ -362,16 +451,16 @@ const LaporanBulanan = () => {
                   const photo = getPhoto(kapal.id);
                   return (
                     <tr key={kapal.id} className={idx % 2 === 0 ? 'bg-muted/30' : ''}>
-                      <td className="p-2 border border-border text-center">{idx + 1}</td>
-                      <td className="p-2 border border-border font-medium">{kapal.namaKapal}</td>
-                      <td className="p-2 border border-border text-center">
+                      <td className="p-1.5 sm:p-2 border border-border text-center">{idx + 1}</td>
+                      <td className="p-1.5 sm:p-2 border border-border font-medium">{kapal.namaKapal}</td>
+                      <td className="p-1.5 sm:p-2 border border-border text-center">
                         {photo?.dokumentasiUrl ? (
-                          <img src={photo.dokumentasiUrl} alt="" className="w-16 h-12 object-cover rounded mx-auto" />
+                          <img src={photo.dokumentasiUrl} alt="" className="w-12 h-9 sm:w-16 sm:h-12 object-cover rounded mx-auto" />
                         ) : <span className="text-muted-foreground text-xs">—</span>}
                       </td>
-                      <td className="p-2 border border-border text-center">
+                      <td className="p-1.5 sm:p-2 border border-border text-center">
                         {photo?.dokumenKerjaUrl ? (
-                          <img src={photo.dokumenKerjaUrl} alt="" className="w-16 h-12 object-cover rounded mx-auto" />
+                          <img src={photo.dokumenKerjaUrl} alt="" className="w-12 h-9 sm:w-16 sm:h-12 object-cover rounded mx-auto" />
                         ) : <span className="text-muted-foreground text-xs">—</span>}
                       </td>
                     </tr>
@@ -380,12 +469,15 @@ const LaporanBulanan = () => {
               </tbody>
             </table>
           </ScrollArea>
-          <div className="flex justify-end gap-2 pt-2">
-            <Button variant="outline" onClick={handleDownloadExcel} disabled={downloading} className="gap-1.5">
-              {downloading ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileSpreadsheet className="w-4 h-4" />} Excel
+          <div className="flex justify-end gap-2 pt-2 flex-wrap">
+            <Button variant="outline" size="sm" onClick={handleDownloadExcel} disabled={downloading} className="gap-1 text-xs">
+              {downloading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <FileSpreadsheet className="w-3.5 h-3.5" />} Excel
             </Button>
-            <Button onClick={handleDownloadPDF} disabled={downloadingPdf} className="gap-1.5">
-              {downloadingPdf ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileText className="w-4 h-4" />} PDF + Foto
+            <Button size="sm" onClick={handleDownloadPDF} disabled={downloadingPdf} className="gap-1 text-xs">
+              {downloadingPdf ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <FileText className="w-3.5 h-3.5" />} PDF
+            </Button>
+            <Button variant="outline" size="sm" onClick={handleDownloadWord} disabled={downloadingWord} className="gap-1 text-xs">
+              {downloadingWord ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <FileDown className="w-3.5 h-3.5" />} Word
             </Button>
           </div>
         </DialogContent>

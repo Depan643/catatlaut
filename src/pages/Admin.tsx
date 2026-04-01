@@ -22,7 +22,7 @@ import {
   ArrowLeft, Users, Ship, BarChart3, Activity, Search, Loader2,
   Shield, Trash2, Eye, Calendar, RefreshCw, Download,
   TrendingUp, Anchor, AlertTriangle, Edit, Save,
-  UserCheck, UserX, FileText, Clock, MapPin, Phone, Mail, Hash,
+  UserCheck, UserX, UserPlus, FileText, Clock, MapPin, Phone, Mail, Hash,
   ChevronRight, ChevronDown, Filter, X, Fish, Database, HardDrive
 } from 'lucide-react';
 import { AdminSpeciesManager } from '@/components/AdminSpeciesManager';
@@ -188,21 +188,42 @@ const Admin = () => {
   const [storageUsage, setStorageUsage] = useState<{ bucketName: string; fileCount: number; totalSize: number }[]>([]);
   const [loadingStorage, setLoadingStorage] = useState(false);
 
+  // Add petugas
+  const [showAddPetugas, setShowAddPetugas] = useState(false);
+  const [newPetugasForm, setNewPetugasForm] = useState({ email: '', password: '', display_name: '' });
+  const [addingPetugas, setAddingPetugas] = useState(false);
+  const [deletePetugasTarget, setDeletePetugasTarget] = useState<UserProfile | null>(null);
+
   const fetchAllData = async () => {
     setLoading(true);
     try {
-      const [profilesRes, kapalRes, entriesRes, logsRes, rolesRes, roleNotesRes] = await Promise.all([
+      const [profilesRes, kapalRes, logsRes, rolesRes, roleNotesRes] = await Promise.all([
         supabase.from('profiles').select('user_id, display_name, email, location, phone, avatar_url, created_at, username, bio'),
         supabase.from('kapal_data').select('*').order('created_at', { ascending: false }),
-        supabase.from('entries').select('*'),
         supabase.from('activity_logs').select('*').order('created_at', { ascending: false }).limit(500),
         supabase.from('user_roles').select('*'),
         supabase.from('role_notes').select('*'),
       ]);
 
+      // Fetch ALL entries with pagination
+      const allEntries: any[] = [];
+      let from = 0;
+      const batchSize = 1000;
+      while (true) {
+        const { data: batch, error: batchErr } = await supabase
+          .from('entries')
+          .select('*')
+          .range(from, from + batchSize - 1);
+        if (batchErr) throw batchErr;
+        if (!batch || batch.length === 0) break;
+        allEntries.push(...batch);
+        if (batch.length < batchSize) break;
+        from += batchSize;
+      }
+
       setUsers((profilesRes.data || []) as UserProfile[]);
       setKapalData(kapalRes.data as KapalRow[] || []);
-      setEntries(entriesRes.data || []);
+      setEntries(allEntries);
       setActivityLogs(logsRes.data || []);
       setUserRoles(rolesRes.data || []);
       setRoleNotes((roleNotesRes.data || []) as RoleNote[]);
@@ -221,18 +242,24 @@ const Admin = () => {
       const usage: typeof storageUsage = [];
       for (const bucket of buckets) {
         try {
-          const { data } = await supabase.storage.from(bucket).list('', { limit: 1000 });
+          // Recursively list all files in bucket
           let fileCount = 0;
           let totalSize = 0;
-          if (data) {
-            // List may contain folders. We count files.
+          const listRecursive = async (prefix: string) => {
+            const { data } = await supabase.storage.from(bucket).list(prefix, { limit: 1000 });
+            if (!data) return;
             for (const item of data) {
+              const fullPath = prefix ? `${prefix}/${item.name}` : item.name;
               if (item.metadata) {
                 fileCount++;
                 totalSize += (item.metadata as any).size || 0;
+              } else {
+                // It's a folder, recurse
+                await listRecursive(fullPath);
               }
             }
-          }
+          };
+          await listRecursive('');
           usage.push({ bucketName: bucket, fileCount, totalSize });
         } catch {
           usage.push({ bucketName: bucket, fileCount: 0, totalSize: 0 });
@@ -583,6 +610,56 @@ const Admin = () => {
     } catch (err: any) {
       console.error('Edit kapal error:', err);
       toast.error('Gagal memperbarui kapal. Silakan coba lagi.');
+    }
+  };
+
+  const handleAddPetugas = async () => {
+    if (!newPetugasForm.email || !newPetugasForm.password) {
+      toast.error('Email dan password wajib diisi');
+      return;
+    }
+    setAddingPetugas(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('create-admin', {
+        body: { email: newPetugasForm.email, password: newPetugasForm.password, display_name: newPetugasForm.display_name },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      toast.success(`Petugas ${newPetugasForm.email} berhasil ditambahkan`);
+      setShowAddPetugas(false);
+      setNewPetugasForm({ email: '', password: '', display_name: '' });
+      fetchAllData();
+    } catch (err: any) {
+      console.error('Add petugas error:', err);
+      toast.error(err.message || 'Gagal menambahkan petugas');
+    } finally {
+      setAddingPetugas(false);
+    }
+  };
+
+  const handleDeletePetugas = async () => {
+    if (!deletePetugasTarget) return;
+    try {
+      // Delete all user data
+      const userId = deletePetugasTarget.user_id;
+      const userKapals = kapalData.filter(k => k.user_id === userId);
+      for (const k of userKapals) {
+        await supabase.from('entries').delete().eq('kapal_id', k.id);
+      }
+      await supabase.from('kapal_data').delete().eq('user_id', userId);
+      await supabase.from('user_roles').delete().eq('user_id', userId);
+      await supabase.from('profiles').delete().eq('user_id', userId);
+      await supabase.from('activity_logs').insert({
+        user_id: user?.id, user_email: user?.email,
+        action: 'admin_delete_user',
+        details: { target_user_id: userId, target_email: deletePetugasTarget.email },
+      });
+      toast.success('Petugas berhasil dihapus');
+      setDeletePetugasTarget(null);
+      fetchAllData();
+    } catch (err: any) {
+      console.error('Delete petugas error:', err);
+      toast.error('Gagal menghapus petugas');
     }
   };
 
@@ -968,48 +1045,53 @@ const Admin = () => {
                                 {k.posisi_dermaga && <span>⚓ {k.posisi_dermaga}</span>}
                                 <span>GT.{k.tanda_selar_gt} No.{k.tanda_selar_no}/{k.tanda_selar_huruf}</span>
                               </div>
-                              {kEntries.length > 0 ? (
-                                <div className="rounded-lg border overflow-hidden">
-                                  <Table>
-                                    <TableHeader>
-                                      <TableRow>
-                                        <TableHead className="text-xs">Jenis</TableHead>
-                                        <TableHead className="text-xs text-right">Berat (kg)</TableHead>
-                                        <TableHead className="text-xs text-right">Waktu</TableHead>
-                                        <TableHead className="text-xs w-20"></TableHead>
-                                      </TableRow>
-                                    </TableHeader>
-                                    <TableBody>
-                                      {kEntries.sort((a, b) => new Date(b.waktu_input).getTime() - new Date(a.waktu_input).getTime()).map(entry => (
-                                        <TableRow key={entry.id}>
-                                          <TableCell className="text-sm">{entry.jenis}</TableCell>
-                                          <TableCell className="text-sm font-medium text-right">{Number(entry.berat).toLocaleString('id-ID')}</TableCell>
-                                          <TableCell className="text-xs text-muted-foreground text-right">{format(new Date(entry.waktu_input), 'HH:mm')}</TableCell>
-                                          <TableCell>
-                                            <div className="flex gap-1 justify-end">
+                              {kEntries.length > 0 ? (() => {
+                                // Group entries by jenis
+                                const grouped = kEntries.reduce<Record<string, { jenis: string; totalBerat: number; count: number; entries: typeof kEntries }>>((acc, e) => {
+                                  if (!acc[e.jenis]) acc[e.jenis] = { jenis: e.jenis, totalBerat: 0, count: 0, entries: [] };
+                                  acc[e.jenis].totalBerat += Number(e.berat);
+                                  acc[e.jenis].count++;
+                                  acc[e.jenis].entries.push(e);
+                                  return acc;
+                                }, {});
+                                const sortedGroups = Object.values(grouped).sort((a, b) => b.totalBerat - a.totalBerat);
+                                return (
+                                  <div className="rounded-lg border overflow-hidden">
+                                    <Table>
+                                      <TableHeader>
+                                        <TableRow>
+                                          <TableHead className="text-xs">Jenis</TableHead>
+                                          <TableHead className="text-xs text-center">Timbangan</TableHead>
+                                          <TableHead className="text-xs text-right">Total (kg)</TableHead>
+                                          <TableHead className="text-xs w-16"></TableHead>
+                                        </TableRow>
+                                      </TableHeader>
+                                      <TableBody>
+                                        {sortedGroups.map(group => (
+                                          <TableRow key={group.jenis}>
+                                            <TableCell className="text-xs sm:text-sm font-medium">{group.jenis}</TableCell>
+                                            <TableCell className="text-xs text-center text-muted-foreground">{group.count}x</TableCell>
+                                            <TableCell className="text-xs sm:text-sm font-bold text-right">{group.totalBerat.toLocaleString('id-ID')}</TableCell>
+                                            <TableCell>
                                               <Button size="icon" variant="ghost" className="h-6 w-6"
                                                 onClick={() => {
-                                                  setEditingEntry(entry);
-                                                  setEditEntryForm({ jenis: entry.jenis, berat: String(entry.berat) });
+                                                  setEditingEntry(group.entries[0]);
+                                                  setEditEntryForm({ jenis: group.jenis, berat: String(group.totalBerat) });
                                                 }}>
                                                 <Edit className="w-3 h-3" />
                                               </Button>
-                                              <Button size="icon" variant="ghost" className="h-6 w-6 text-destructive"
-                                                onClick={() => setDeleteEntryTarget(entry)}>
-                                                <Trash2 className="w-3 h-3" />
-                                              </Button>
-                                            </div>
-                                          </TableCell>
-                                        </TableRow>
-                                      ))}
-                                    </TableBody>
-                                  </Table>
-                                  <div className="px-3 py-2 bg-muted/50 text-sm font-semibold flex justify-between">
-                                    <span>Total ({kEntries.length} entri)</span>
-                                    <span>{totalBerat.toLocaleString('id-ID')} kg</span>
+                                            </TableCell>
+                                          </TableRow>
+                                        ))}
+                                      </TableBody>
+                                    </Table>
+                                    <div className="px-3 py-2 bg-muted/50 text-xs sm:text-sm font-semibold flex justify-between">
+                                      <span>Total ({sortedGroups.length} jenis, {kEntries.length} timbangan)</span>
+                                      <span>{totalBerat.toLocaleString('id-ID')} kg</span>
+                                    </div>
                                   </div>
-                                </div>
-                              ) : (
+                                );
+                              })() : (
                                 <p className="text-xs text-muted-foreground text-center py-4">Belum ada entri</p>
                               )}
                               <div className="flex justify-end mt-2 gap-2">
@@ -1044,13 +1126,16 @@ const Admin = () => {
               </>
             ) : (
               <>
-                <div className="flex gap-2">
+                <div className="flex gap-2 flex-wrap">
                   <div className="relative flex-1">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                    <Input placeholder="Cari nama / email / username / lokasi / telepon..."
+                    <Input placeholder="Cari nama / email / username..."
                       value={userSearch} onChange={e => setUserSearch(e.target.value)}
                       className="pl-10" />
                   </div>
+                  <Button size="sm" onClick={() => setShowAddPetugas(true)} className="gap-1 h-10">
+                    <UserPlus className="w-4 h-4" /> Tambah
+                  </Button>
                 </div>
 
                 <div className="space-y-2">
@@ -1108,6 +1193,12 @@ const Admin = () => {
                                 onClick={() => setRoleDialog({ userId: u.user_id, currentRole: role })}>
                                 <Shield className="w-3 h-3 mr-1" /> Role
                               </Button>
+                              {getUserRole(u.user_id) !== 'admin' && (
+                                <Button size="sm" variant="outline" className="text-xs h-7 text-destructive border-destructive/30"
+                                  onClick={() => setDeletePetugasTarget(u)}>
+                                  <Trash2 className="w-3 h-3 mr-1" /> Hapus
+                                </Button>
+                              )}
                             </div>
                           </div>
                         </CardContent>
@@ -1597,17 +1688,45 @@ const Admin = () => {
                       { name: 'entries', count: entries.length, icon: '📦', desc: 'Entri pendataan' },
                       { name: 'activity_logs', count: activityLogs.length, icon: '📋', desc: 'Log aktivitas' },
                       { name: 'user_roles', count: userRoles.length, icon: '🛡️', desc: 'Role pengguna' },
-                      { name: 'fish_species', count: 0, icon: '🐟', desc: 'Jenis ikan' },
                     ].map(t => (
                       <div key={t.name} className="flex items-center gap-2 p-2.5 rounded-lg bg-muted/50 border border-border/50">
                         <span className="text-lg">{t.icon}</span>
                         <div className="flex-1 min-w-0">
                           <p className="text-xs font-mono font-semibold truncate">{t.name}</p>
                           <p className="text-[10px] text-muted-foreground">{t.desc}</p>
-                          <p className="text-xs font-bold text-primary">{t.count === 0 ? '—' : `${t.count} baris`}</p>
+                          <p className="text-xs font-bold text-primary">{`${t.count} baris`}</p>
                         </div>
                       </div>
                     ))}
+                  </div>
+                </div>
+
+                {/* Per-petugas usage */}
+                <div className="mt-4 pt-3 border-t">
+                  <p className="text-xs font-bold text-muted-foreground mb-2">Penggunaan Per Petugas</p>
+                  <div className="space-y-2">
+                    {users.map(u => {
+                      const stats = userStats[u.user_id] || { kapal: 0, entries: 0, weight: 0 };
+                      if (stats.kapal === 0 && stats.entries === 0) return null;
+                      return (
+                        <div key={u.user_id} className="flex items-center gap-3 p-2.5 rounded-lg bg-muted/50 border border-border/50">
+                          <Avatar className="w-7 h-7 shrink-0">
+                            <AvatarImage src={u.avatar_url || undefined} />
+                            <AvatarFallback className="text-[10px] bg-primary/10 text-primary">
+                              {(u.display_name || '?')[0]?.toUpperCase()}
+                            </AvatarFallback>
+                          </Avatar>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-xs font-semibold truncate">{u.display_name || u.email || 'N/A'}</p>
+                            <div className="flex gap-2 text-[10px] text-muted-foreground">
+                              <span>{stats.kapal} kapal</span>
+                              <span>{stats.entries} entri</span>
+                              <span className="font-medium text-primary">{stats.weight.toLocaleString('id-ID')} kg</span>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    }).filter(Boolean)}
                   </div>
                 </div>
 
@@ -1792,6 +1911,56 @@ const Admin = () => {
             <AlertDialogCancel>Batal</AlertDialogCancel>
             <AlertDialogAction className="bg-destructive hover:bg-destructive/90" onClick={handleDeleteEntry}>
               Hapus
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Add Petugas Dialog */}
+      <Dialog open={showAddPetugas} onOpenChange={setShowAddPetugas}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <UserPlus className="w-5 h-5 text-primary" /> Tambah Petugas Baru
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div className="space-y-1.5">
+              <Label className="text-xs">Nama Lengkap</Label>
+              <Input value={newPetugasForm.display_name} onChange={e => setNewPetugasForm(f => ({ ...f, display_name: e.target.value }))} placeholder="Nama petugas" />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs flex items-center gap-1"><Mail className="w-3 h-3" /> Email <span className="text-destructive">*</span></Label>
+              <Input type="email" value={newPetugasForm.email} onChange={e => setNewPetugasForm(f => ({ ...f, email: e.target.value }))} placeholder="email@example.com" />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs">Password <span className="text-destructive">*</span></Label>
+              <Input type="password" value={newPetugasForm.password} onChange={e => setNewPetugasForm(f => ({ ...f, password: e.target.value }))} placeholder="Min. 6 karakter" />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowAddPetugas(false)}>Batal</Button>
+            <Button onClick={handleAddPetugas} disabled={addingPetugas}>
+              {addingPetugas ? <Loader2 className="w-4 h-4 animate-spin mr-1" /> : <UserPlus className="w-4 h-4 mr-1" />}
+              Tambah
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Petugas Confirmation */}
+      <AlertDialog open={!!deletePetugasTarget} onOpenChange={() => setDeletePetugasTarget(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Hapus Petugas?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Hapus petugas <strong>{deletePetugasTarget?.display_name || deletePetugasTarget?.email}</strong> beserta semua data kapal dan entri miliknya? Tindakan ini tidak dapat dibatalkan.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Batal</AlertDialogCancel>
+            <AlertDialogAction className="bg-destructive hover:bg-destructive/90" onClick={handleDeletePetugas}>
+              Hapus Petugas
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
