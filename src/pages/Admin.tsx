@@ -188,6 +188,12 @@ const Admin = () => {
   const [storageUsage, setStorageUsage] = useState<{ bucketName: string; fileCount: number; totalSize: number }[]>([]);
   const [loadingStorage, setLoadingStorage] = useState(false);
 
+  // Add petugas
+  const [showAddPetugas, setShowAddPetugas] = useState(false);
+  const [newPetugasForm, setNewPetugasForm] = useState({ email: '', password: '', display_name: '' });
+  const [addingPetugas, setAddingPetugas] = useState(false);
+  const [deletePetugasTarget, setDeletePetugasTarget] = useState<UserProfile | null>(null);
+
   const fetchAllData = async () => {
     setLoading(true);
     try {
