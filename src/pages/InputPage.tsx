@@ -149,7 +149,12 @@ const InputPage = () => {
 
   const handleUpdateKapal = async (data: any) => {
     try {
-      await updateKapal(kapal.id, data);
+      const updates: any = { ...data };
+      if (data.tanggalBongkar) {
+        updates.tanggal = data.tanggalBongkar;
+        delete updates.tanggalBongkar;
+      }
+      await updateKapal(kapal.id, updates);
       setShowEditKapal(false);
       toast.success('Data kapal berhasil diperbarui');
     } catch (error: any) {
