@@ -1126,13 +1126,16 @@ const Admin = () => {
               </>
             ) : (
               <>
-                <div className="flex gap-2">
+                <div className="flex gap-2 flex-wrap">
                   <div className="relative flex-1">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                    <Input placeholder="Cari nama / email / username / lokasi / telepon..."
+                    <Input placeholder="Cari nama / email / username..."
                       value={userSearch} onChange={e => setUserSearch(e.target.value)}
                       className="pl-10" />
                   </div>
+                  <Button size="sm" onClick={() => setShowAddPetugas(true)} className="gap-1 h-10">
+                    <UserPlus className="w-4 h-4" /> Tambah
+                  </Button>
                 </div>
 
                 <div className="space-y-2">
