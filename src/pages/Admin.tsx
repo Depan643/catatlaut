@@ -1193,6 +1193,12 @@ const Admin = () => {
                                 onClick={() => setRoleDialog({ userId: u.user_id, currentRole: role })}>
                                 <Shield className="w-3 h-3 mr-1" /> Role
                               </Button>
+                              {getUserRole(u.user_id) !== 'admin' && (
+                                <Button size="sm" variant="outline" className="text-xs h-7 text-destructive border-destructive/30"
+                                  onClick={() => setDeletePetugasTarget(u)}>
+                                  <Trash2 className="w-3 h-3 mr-1" /> Hapus
+                                </Button>
+                              )}
                             </div>
                           </div>
                         </CardContent>
