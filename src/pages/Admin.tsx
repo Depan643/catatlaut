@@ -1623,17 +1623,45 @@ const Admin = () => {
                       { name: 'entries', count: entries.length, icon: '📦', desc: 'Entri pendataan' },
                       { name: 'activity_logs', count: activityLogs.length, icon: '📋', desc: 'Log aktivitas' },
                       { name: 'user_roles', count: userRoles.length, icon: '🛡️', desc: 'Role pengguna' },
-                      { name: 'fish_species', count: 0, icon: '🐟', desc: 'Jenis ikan' },
                     ].map(t => (
                       <div key={t.name} className="flex items-center gap-2 p-2.5 rounded-lg bg-muted/50 border border-border/50">
                         <span className="text-lg">{t.icon}</span>
                         <div className="flex-1 min-w-0">
                           <p className="text-xs font-mono font-semibold truncate">{t.name}</p>
                           <p className="text-[10px] text-muted-foreground">{t.desc}</p>
-                          <p className="text-xs font-bold text-primary">{t.count === 0 ? '—' : `${t.count} baris`}</p>
+                          <p className="text-xs font-bold text-primary">{`${t.count} baris`}</p>
                         </div>
                       </div>
                     ))}
+                  </div>
+                </div>
+
+                {/* Per-petugas usage */}
+                <div className="mt-4 pt-3 border-t">
+                  <p className="text-xs font-bold text-muted-foreground mb-2">Penggunaan Per Petugas</p>
+                  <div className="space-y-2">
+                    {users.map(u => {
+                      const stats = userStats[u.user_id] || { kapal: 0, entries: 0, weight: 0 };
+                      if (stats.kapal === 0 && stats.entries === 0) return null;
+                      return (
+                        <div key={u.user_id} className="flex items-center gap-3 p-2.5 rounded-lg bg-muted/50 border border-border/50">
+                          <Avatar className="w-7 h-7 shrink-0">
+                            <AvatarImage src={u.avatar_url || undefined} />
+                            <AvatarFallback className="text-[10px] bg-primary/10 text-primary">
+                              {(u.display_name || '?')[0]?.toUpperCase()}
+                            </AvatarFallback>
+                          </Avatar>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-xs font-semibold truncate">{u.display_name || u.email || 'N/A'}</p>
+                            <div className="flex gap-2 text-[10px] text-muted-foreground">
+                              <span>{stats.kapal} kapal</span>
+                              <span>{stats.entries} entri</span>
+                              <span className="font-medium text-primary">{stats.weight.toLocaleString('id-ID')} kg</span>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    }).filter(Boolean)}
                   </div>
                 </div>
 
