@@ -1915,6 +1915,56 @@ const Admin = () => {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Add Petugas Dialog */}
+      <Dialog open={showAddPetugas} onOpenChange={setShowAddPetugas}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <UserPlus className="w-5 h-5 text-primary" /> Tambah Petugas Baru
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div className="space-y-1.5">
+              <Label className="text-xs">Nama Lengkap</Label>
+              <Input value={newPetugasForm.display_name} onChange={e => setNewPetugasForm(f => ({ ...f, display_name: e.target.value }))} placeholder="Nama petugas" />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs flex items-center gap-1"><Mail className="w-3 h-3" /> Email <span className="text-destructive">*</span></Label>
+              <Input type="email" value={newPetugasForm.email} onChange={e => setNewPetugasForm(f => ({ ...f, email: e.target.value }))} placeholder="email@example.com" />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs">Password <span className="text-destructive">*</span></Label>
+              <Input type="password" value={newPetugasForm.password} onChange={e => setNewPetugasForm(f => ({ ...f, password: e.target.value }))} placeholder="Min. 6 karakter" />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowAddPetugas(false)}>Batal</Button>
+            <Button onClick={handleAddPetugas} disabled={addingPetugas}>
+              {addingPetugas ? <Loader2 className="w-4 h-4 animate-spin mr-1" /> : <UserPlus className="w-4 h-4 mr-1" />}
+              Tambah
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Petugas Confirmation */}
+      <AlertDialog open={!!deletePetugasTarget} onOpenChange={() => setDeletePetugasTarget(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Hapus Petugas?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Hapus petugas <strong>{deletePetugasTarget?.display_name || deletePetugasTarget?.email}</strong> beserta semua data kapal dan entri miliknya? Tindakan ini tidak dapat dibatalkan.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Batal</AlertDialogCancel>
+            <AlertDialogAction className="bg-destructive hover:bg-destructive/90" onClick={handleDeletePetugas}>
+              Hapus Petugas
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };
