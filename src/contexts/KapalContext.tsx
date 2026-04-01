@@ -59,14 +59,23 @@ export const KapalProvider: React.FC<{ children: ReactNode }> = ({ children }) =
 
       if (kapalError) throw kapalError;
 
-      // Fetch all entries (default limit is 1000, so we set higher)
-      const { data: entriesData, error: entriesError } = await supabase
-        .from('entries')
-        .select('*')
-        .eq('user_id', user.id)
-        .limit(10000);
-
-      if (entriesError) throw entriesError;
+      // Fetch ALL entries with pagination (no limit)
+      const allEntries: any[] = [];
+      let from = 0;
+      const batchSize = 1000;
+      while (true) {
+        const { data: batch, error: entriesError } = await supabase
+          .from('entries')
+          .select('*')
+          .eq('user_id', user.id)
+          .range(from, from + batchSize - 1);
+        if (entriesError) throw entriesError;
+        if (!batch || batch.length === 0) break;
+        allEntries.push(...batch);
+        if (batch.length < batchSize) break;
+        from += batchSize;
+      }
+      const entriesData = allEntries;
 
       const mappedKapal: Kapal[] = (kapalData || []).map((k) => ({
         id: k.id,
