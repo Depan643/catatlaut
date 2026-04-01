@@ -236,18 +236,24 @@ const Admin = () => {
       const usage: typeof storageUsage = [];
       for (const bucket of buckets) {
         try {
-          const { data } = await supabase.storage.from(bucket).list('', { limit: 1000 });
+          // Recursively list all files in bucket
           let fileCount = 0;
           let totalSize = 0;
-          if (data) {
-            // List may contain folders. We count files.
+          const listRecursive = async (prefix: string) => {
+            const { data } = await supabase.storage.from(bucket).list(prefix, { limit: 1000 });
+            if (!data) return;
             for (const item of data) {
+              const fullPath = prefix ? `${prefix}/${item.name}` : item.name;
               if (item.metadata) {
                 fileCount++;
                 totalSize += (item.metadata as any).size || 0;
+              } else {
+                // It's a folder, recurse
+                await listRecursive(fullPath);
               }
             }
-          }
+          };
+          await listRecursive('');
           usage.push({ bucketName: bucket, fileCount, totalSize });
         } catch {
           usage.push({ bucketName: bucket, fileCount: 0, totalSize: 0 });
