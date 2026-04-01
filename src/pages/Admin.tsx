@@ -22,7 +22,7 @@ import {
   ArrowLeft, Users, Ship, BarChart3, Activity, Search, Loader2,
   Shield, Trash2, Eye, Calendar, RefreshCw, Download,
   TrendingUp, Anchor, AlertTriangle, Edit, Save,
-  UserCheck, UserX, FileText, Clock, MapPin, Phone, Mail, Hash,
+  UserCheck, UserX, UserPlus, FileText, Clock, MapPin, Phone, Mail, Hash,
   ChevronRight, ChevronDown, Filter, X, Fish, Database, HardDrive
 } from 'lucide-react';
 import { AdminSpeciesManager } from '@/components/AdminSpeciesManager';
