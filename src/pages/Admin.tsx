@@ -989,8 +989,7 @@ const Admin = () => {
                                 {k.posisi_dermaga && <span>⚓ {k.posisi_dermaga}</span>}
                                 <span>GT.{k.tanda_selar_gt} No.{k.tanda_selar_no}/{k.tanda_selar_huruf}</span>
                               </div>
-                              {kEntries.length > 0 ? (
-                              {(() => {
+                              {kEntries.length > 0 ? (() => {
                                 // Group entries by jenis
                                 const grouped = kEntries.reduce<Record<string, { jenis: string; totalBerat: number; count: number; entries: typeof kEntries }>>((acc, e) => {
                                   if (!acc[e.jenis]) acc[e.jenis] = { jenis: e.jenis, totalBerat: 0, count: 0, entries: [] };
@@ -1036,8 +1035,7 @@ const Admin = () => {
                                     </div>
                                   </div>
                                 );
-                              })()}
-                              ) : (
+                              })() : (
                                 <p className="text-xs text-muted-foreground text-center py-4">Belum ada entri</p>
                               )}
                               <div className="flex justify-end mt-2 gap-2">
