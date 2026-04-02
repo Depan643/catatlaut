@@ -10,8 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { format, startOfMonth, endOfMonth } from 'date-fns';
 import { id as idLocale } from 'date-fns/locale';
-import ExcelJS from 'exceljs';
-import { saveAs } from 'file-saver';
+import * as XLSX from 'xlsx';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { toast } from 'sonner';
@@ -108,16 +107,6 @@ const LaporanBulanan = () => {
 
   const getPhoto = (kapalId: string) => photos.find(p => p.kapalId === kapalId);
 
-  const fetchImageAsArrayBuffer = async (url: string): Promise<ArrayBuffer | null> => {
-    try {
-      const response = await fetch(url);
-      if (!response.ok) return null;
-      return await response.arrayBuffer();
-    } catch {
-      return null;
-    }
-  };
-
   const fetchImageAsBase64Full = async (url: string): Promise<string | null> => {
     try {
       const response = await fetch(url);
@@ -141,88 +130,35 @@ const LaporanBulanan = () => {
       const [y, m] = selectedMonth.split('-').map(Number);
       const monthLabel = format(new Date(y, m, 1), 'MMMM yyyy', { locale: idLocale });
 
-      const wb = new ExcelJS.Workbook();
-      const ws = wb.addWorksheet('Laporan');
-
-      // Title
-      const headerRow = profileData ? 6 : 4;
-      ws.mergeCells(1, 1, 1, 5);
-      const titleCell = ws.getCell('A1');
-      titleCell.value = `LAPORAN BULANAN - ${monthLabel.toUpperCase()}`;
-      titleCell.font = { bold: true, size: 14 };
-      titleCell.alignment = { horizontal: 'center' };
-
+      const wb = XLSX.utils.book_new();
+      const wsData: any[][] = [];
+      wsData.push([`LAPORAN BULANAN - ${monthLabel.toUpperCase()}`]);
+      wsData.push([]);
       if (profileData) {
-        ws.getCell('A3').value = 'Petugas';
-        ws.getCell('B3').value = profileData.display_name || '-';
-        ws.getCell('A4').value = 'Lokasi';
-        ws.getCell('B4').value = profileData.location || '-';
+        wsData.push(['Petugas', profileData.display_name || '-']);
+        wsData.push(['Lokasi', profileData.location || '-']);
       }
+      wsData.push([]);
+      wsData.push(['No', 'Nama Kapal', 'Tanggal', 'Dokumentasi', 'Dokumen Kerja']);
 
-      // Header row
-      const hdr = ws.getRow(headerRow);
-      ['No', 'Nama Kapal', 'Tanggal', 'Dokumentasi', 'Dokumen Kerja'].forEach((h, i) => {
-        const cell = hdr.getCell(i + 1);
-        cell.value = h;
-        cell.font = { bold: true };
-        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFFF00' } };
-        cell.alignment = { horizontal: 'center', vertical: 'middle' };
-        cell.border = { top: { style: 'thin' }, bottom: { style: 'thin' }, left: { style: 'thin' }, right: { style: 'thin' } };
+      filteredKapal.forEach((kapal, idx) => {
+        const photo = getPhoto(kapal.id);
+        wsData.push([
+          idx + 1,
+          kapal.namaKapal,
+          format(new Date(kapal.tanggal), 'dd/MM/yyyy'),
+          photo?.dokumentasiUrl ? 'Ada foto' : '—',
+          photo?.dokumenKerjaUrl ? 'Ada foto' : '—',
+        ]);
       });
 
-      ws.getColumn(1).width = 5;
-      ws.getColumn(2).width = 30;
-      ws.getColumn(3).width = 15;
-      ws.getColumn(4).width = 28;
-      ws.getColumn(5).width = 28;
+      const ws = XLSX.utils.aoa_to_sheet(wsData);
+      ws['!cols'] = [{ wch: 5 }, { wch: 30 }, { wch: 15 }, { wch: 20 }, { wch: 20 }];
+      ws['!merges'] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: 4 } }];
 
-      // Data rows with images
-      for (let idx = 0; idx < filteredKapal.length; idx++) {
-        const kapal = filteredKapal[idx];
-        const photo = getPhoto(kapal.id);
-        const rowNum = headerRow + 1 + idx;
-        const row = ws.getRow(rowNum);
-        row.height = 80;
-
-        row.getCell(1).value = idx + 1;
-        row.getCell(1).alignment = { horizontal: 'center', vertical: 'middle' };
-        row.getCell(2).value = kapal.namaKapal;
-        row.getCell(2).alignment = { vertical: 'middle' };
-        row.getCell(3).value = format(new Date(kapal.tanggal), 'dd/MM/yyyy');
-        row.getCell(3).alignment = { horizontal: 'center', vertical: 'middle' };
-
-        for (let c = 1; c <= 5; c++) {
-          row.getCell(c).border = { top: { style: 'thin' }, bottom: { style: 'thin' }, left: { style: 'thin' }, right: { style: 'thin' } };
-        }
-
-        // Dokumentasi image
-        if (photo?.dokumentasiUrl) {
-          const buf = await fetchImageAsArrayBuffer(photo.dokumentasiUrl);
-          if (buf) {
-            const imgId = wb.addImage({ buffer: buf, extension: 'jpeg' });
-            ws.addImage(imgId, {
-              tl: { col: 3, row: rowNum - 1 } as any,
-              ext: { width: 140, height: 100 },
-            });
-          }
-        }
-
-        // Dokumen Kerja image
-        if (photo?.dokumenKerjaUrl) {
-          const buf = await fetchImageAsArrayBuffer(photo.dokumenKerjaUrl);
-          if (buf) {
-            const imgId = wb.addImage({ buffer: buf, extension: 'jpeg' });
-            ws.addImage(imgId, {
-              tl: { col: 4, row: rowNum - 1 } as any,
-              ext: { width: 140, height: 100 },
-            });
-          }
-        }
-      }
-
-      const buffer = await wb.xlsx.writeBuffer();
-      saveAs(new Blob([buffer]), `Laporan_Bulanan_${monthLabel.replace(/\s+/g, '_')}.xlsx`);
-      toast.success('Excel berhasil diunduh dengan foto');
+      XLSX.utils.book_append_sheet(wb, ws, 'Laporan');
+      XLSX.writeFile(wb, `Laporan_Bulanan_${monthLabel.replace(/\s+/g, '_')}.xlsx`);
+      toast.success('Excel berhasil diunduh');
     } catch (err) {
       console.error('Excel export error:', err);
       toast.error('Gagal mengunduh laporan');
@@ -329,24 +265,17 @@ const LaporanBulanan = () => {
       const [y, m] = selectedMonth.split('-').map(Number);
       const monthLabel = format(new Date(y, m, 1), 'MMMM yyyy', { locale: idLocale });
 
-      // Build HTML-based Word document with embedded images at 6cm width
+      // Build HTML-based Word document with embedded images
       let html = `
         <html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40">
-        <head><meta charset="utf-8">
-        <!--[if gte mso 9]><xml><w:WordDocument><w:View>Print</w:View></w:WordDocument></xml><![endif]-->
-        <style>
-          @page { size: landscape; margin: 1.5cm; }
-          body { font-family: Arial, sans-serif; font-size: 11pt; }
-          table { border-collapse: collapse; width: 100%; table-layout: fixed; }
-          th, td { border: 1px solid #333; padding: 6px 8px; text-align: center; font-size: 10pt; vertical-align: middle; word-wrap: break-word; }
+        <head><meta charset="utf-8"><style>
+          body { font-family: Arial, sans-serif; }
+          table { border-collapse: collapse; width: 100%; }
+          th, td { border: 1px solid #333; padding: 6px 8px; text-align: center; font-size: 11px; }
           th { background-color: #FFFF00; font-weight: bold; }
-          col.no { width: 5%; }
-          col.nama { width: 20%; }
-          col.tgl { width: 12%; }
-          col.foto { width: 31.5%; }
-          h1 { text-align: center; font-size: 14pt; margin-bottom: 4px; }
-          .info { text-align: center; font-size: 10pt; margin-bottom: 12px; }
-          img { width: 6cm; height: auto; }
+          h1 { text-align: center; font-size: 16px; }
+          .info { text-align: center; font-size: 11px; margin-bottom: 12px; }
+          img { max-width: 120px; max-height: 90px; }
         </style></head><body>
         <h1>LAPORAN BULANAN - ${monthLabel.toUpperCase()}</h1>`;
 
@@ -354,9 +283,7 @@ const LaporanBulanan = () => {
         html += `<p class="info">Petugas: ${profileData.display_name || '-'} &nbsp;|&nbsp; Lokasi: ${profileData.location || '-'}</p>`;
       }
 
-      html += `<table>
-        <colgroup><col class="no"/><col class="nama"/><col class="tgl"/><col class="foto"/><col class="foto"/></colgroup>
-        <tr><th>No</th><th>Nama Kapal</th><th>Tanggal</th><th>Dokumentasi</th><th>Dokumen Kerja</th></tr>`;
+      html += `<table><tr><th>No</th><th>Nama Kapal</th><th>Tanggal</th><th>Dokumentasi</th><th>Dokumen Kerja</th></tr>`;
 
       for (let idx = 0; idx < filteredKapal.length; idx++) {
         const kapal = filteredKapal[idx];
