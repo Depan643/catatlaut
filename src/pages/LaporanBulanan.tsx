@@ -141,35 +141,88 @@ const LaporanBulanan = () => {
       const [y, m] = selectedMonth.split('-').map(Number);
       const monthLabel = format(new Date(y, m, 1), 'MMMM yyyy', { locale: idLocale });
 
-      const wb = XLSX.utils.book_new();
-      const wsData: any[][] = [];
-      wsData.push([`LAPORAN BULANAN - ${monthLabel.toUpperCase()}`]);
-      wsData.push([]);
-      if (profileData) {
-        wsData.push(['Petugas', profileData.display_name || '-']);
-        wsData.push(['Lokasi', profileData.location || '-']);
-      }
-      wsData.push([]);
-      wsData.push(['No', 'Nama Kapal', 'Tanggal', 'Dokumentasi', 'Dokumen Kerja']);
+      const wb = new ExcelJS.Workbook();
+      const ws = wb.addWorksheet('Laporan');
 
-      filteredKapal.forEach((kapal, idx) => {
-        const photo = getPhoto(kapal.id);
-        wsData.push([
-          idx + 1,
-          kapal.namaKapal,
-          format(new Date(kapal.tanggal), 'dd/MM/yyyy'),
-          photo?.dokumentasiUrl ? 'Ada foto' : '—',
-          photo?.dokumenKerjaUrl ? 'Ada foto' : '—',
-        ]);
+      // Title
+      const headerRow = profileData ? 6 : 4;
+      ws.mergeCells(1, 1, 1, 5);
+      const titleCell = ws.getCell('A1');
+      titleCell.value = `LAPORAN BULANAN - ${monthLabel.toUpperCase()}`;
+      titleCell.font = { bold: true, size: 14 };
+      titleCell.alignment = { horizontal: 'center' };
+
+      if (profileData) {
+        ws.getCell('A3').value = 'Petugas';
+        ws.getCell('B3').value = profileData.display_name || '-';
+        ws.getCell('A4').value = 'Lokasi';
+        ws.getCell('B4').value = profileData.location || '-';
+      }
+
+      // Header row
+      const hdr = ws.getRow(headerRow);
+      ['No', 'Nama Kapal', 'Tanggal', 'Dokumentasi', 'Dokumen Kerja'].forEach((h, i) => {
+        const cell = hdr.getCell(i + 1);
+        cell.value = h;
+        cell.font = { bold: true };
+        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFFF00' } };
+        cell.alignment = { horizontal: 'center', vertical: 'middle' };
+        cell.border = { top: { style: 'thin' }, bottom: { style: 'thin' }, left: { style: 'thin' }, right: { style: 'thin' } };
       });
 
-      const ws = XLSX.utils.aoa_to_sheet(wsData);
-      ws['!cols'] = [{ wch: 5 }, { wch: 30 }, { wch: 15 }, { wch: 20 }, { wch: 20 }];
-      ws['!merges'] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: 4 } }];
+      ws.getColumn(1).width = 5;
+      ws.getColumn(2).width = 30;
+      ws.getColumn(3).width = 15;
+      ws.getColumn(4).width = 28;
+      ws.getColumn(5).width = 28;
 
-      XLSX.utils.book_append_sheet(wb, ws, 'Laporan');
-      XLSX.writeFile(wb, `Laporan_Bulanan_${monthLabel.replace(/\s+/g, '_')}.xlsx`);
-      toast.success('Excel berhasil diunduh');
+      // Data rows with images
+      for (let idx = 0; idx < filteredKapal.length; idx++) {
+        const kapal = filteredKapal[idx];
+        const photo = getPhoto(kapal.id);
+        const rowNum = headerRow + 1 + idx;
+        const row = ws.getRow(rowNum);
+        row.height = 80;
+
+        row.getCell(1).value = idx + 1;
+        row.getCell(1).alignment = { horizontal: 'center', vertical: 'middle' };
+        row.getCell(2).value = kapal.namaKapal;
+        row.getCell(2).alignment = { vertical: 'middle' };
+        row.getCell(3).value = format(new Date(kapal.tanggal), 'dd/MM/yyyy');
+        row.getCell(3).alignment = { horizontal: 'center', vertical: 'middle' };
+
+        for (let c = 1; c <= 5; c++) {
+          row.getCell(c).border = { top: { style: 'thin' }, bottom: { style: 'thin' }, left: { style: 'thin' }, right: { style: 'thin' } };
+        }
+
+        // Dokumentasi image
+        if (photo?.dokumentasiUrl) {
+          const buf = await fetchImageAsArrayBuffer(photo.dokumentasiUrl);
+          if (buf) {
+            const imgId = wb.addImage({ buffer: buf, extension: 'jpeg' });
+            ws.addImage(imgId, {
+              tl: { col: 3, row: rowNum - 1 } as any,
+              ext: { width: 140, height: 100 },
+            });
+          }
+        }
+
+        // Dokumen Kerja image
+        if (photo?.dokumenKerjaUrl) {
+          const buf = await fetchImageAsArrayBuffer(photo.dokumenKerjaUrl);
+          if (buf) {
+            const imgId = wb.addImage({ buffer: buf, extension: 'jpeg' });
+            ws.addImage(imgId, {
+              tl: { col: 4, row: rowNum - 1 } as any,
+              ext: { width: 140, height: 100 },
+            });
+          }
+        }
+      }
+
+      const buffer = await wb.xlsx.writeBuffer();
+      saveAs(new Blob([buffer]), `Laporan_Bulanan_${monthLabel.replace(/\s+/g, '_')}.xlsx`);
+      toast.success('Excel berhasil diunduh dengan foto');
     } catch (err) {
       console.error('Excel export error:', err);
       toast.error('Gagal mengunduh laporan');
