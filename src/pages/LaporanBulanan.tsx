@@ -329,17 +329,24 @@ const LaporanBulanan = () => {
       const [y, m] = selectedMonth.split('-').map(Number);
       const monthLabel = format(new Date(y, m, 1), 'MMMM yyyy', { locale: idLocale });
 
-      // Build HTML-based Word document with embedded images
+      // Build HTML-based Word document with embedded images at 6cm width
       let html = `
         <html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40">
-        <head><meta charset="utf-8"><style>
-          body { font-family: Arial, sans-serif; }
-          table { border-collapse: collapse; width: 100%; }
-          th, td { border: 1px solid #333; padding: 6px 8px; text-align: center; font-size: 11px; }
+        <head><meta charset="utf-8">
+        <!--[if gte mso 9]><xml><w:WordDocument><w:View>Print</w:View></w:WordDocument></xml><![endif]-->
+        <style>
+          @page { size: landscape; margin: 1.5cm; }
+          body { font-family: Arial, sans-serif; font-size: 11pt; }
+          table { border-collapse: collapse; width: 100%; table-layout: fixed; }
+          th, td { border: 1px solid #333; padding: 6px 8px; text-align: center; font-size: 10pt; vertical-align: middle; word-wrap: break-word; }
           th { background-color: #FFFF00; font-weight: bold; }
-          h1 { text-align: center; font-size: 16px; }
-          .info { text-align: center; font-size: 11px; margin-bottom: 12px; }
-          img { max-width: 120px; max-height: 90px; }
+          col.no { width: 5%; }
+          col.nama { width: 20%; }
+          col.tgl { width: 12%; }
+          col.foto { width: 31.5%; }
+          h1 { text-align: center; font-size: 14pt; margin-bottom: 4px; }
+          .info { text-align: center; font-size: 10pt; margin-bottom: 12px; }
+          img { width: 6cm; height: auto; }
         </style></head><body>
         <h1>LAPORAN BULANAN - ${monthLabel.toUpperCase()}</h1>`;
 
@@ -347,7 +354,9 @@ const LaporanBulanan = () => {
         html += `<p class="info">Petugas: ${profileData.display_name || '-'} &nbsp;|&nbsp; Lokasi: ${profileData.location || '-'}</p>`;
       }
 
-      html += `<table><tr><th>No</th><th>Nama Kapal</th><th>Tanggal</th><th>Dokumentasi</th><th>Dokumen Kerja</th></tr>`;
+      html += `<table>
+        <colgroup><col class="no"/><col class="nama"/><col class="tgl"/><col class="foto"/><col class="foto"/></colgroup>
+        <tr><th>No</th><th>Nama Kapal</th><th>Tanggal</th><th>Dokumentasi</th><th>Dokumen Kerja</th></tr>`;
 
       for (let idx = 0; idx < filteredKapal.length; idx++) {
         const kapal = filteredKapal[idx];
