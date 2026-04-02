@@ -108,6 +108,16 @@ const LaporanBulanan = () => {
 
   const getPhoto = (kapalId: string) => photos.find(p => p.kapalId === kapalId);
 
+  const fetchImageAsArrayBuffer = async (url: string): Promise<ArrayBuffer | null> => {
+    try {
+      const response = await fetch(url);
+      if (!response.ok) return null;
+      return await response.arrayBuffer();
+    } catch {
+      return null;
+    }
+  };
+
   const fetchImageAsBase64Full = async (url: string): Promise<string | null> => {
     try {
       const response = await fetch(url);
