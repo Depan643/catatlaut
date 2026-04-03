@@ -2,7 +2,7 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { Search, CheckCircle2, ChevronRight, Ship, Filter, Trash2, X } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Kapal } from '@/types';
-import { format, isToday, isYesterday, startOfMonth, endOfMonth } from 'date-fns';
+import { format, isToday, isYesterday } from 'date-fns';
 import { id as idLocale } from 'date-fns/locale';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -26,33 +26,28 @@ export const RiwayatKapal: React.FC<RiwayatKapalProps> = ({
 }) => {
   const [search, setSearch] = useState('');
   const [pippConfirmId, setPippConfirmId] = useState<string | null>(null);
-  const [selectedMonth, setSelectedMonth] = useState<string>(() => {
-    const now = new Date();
-    return `${now.getFullYear()}-${String(now.getMonth()).padStart(2, '0')}`;
-  });
+  const [selectedYear, setSelectedYear] = useState<string>(() => String(new Date().getFullYear()));
+  const [selectedMonth, setSelectedMonth] = useState<string>(() => String(new Date().getMonth()));
   const [filterJenis, setFilterJenis] = useState<string>('semua');
   const [showFilter, setShowFilter] = useState(false);
 
-  const MONTH_OPTIONS = useMemo(() => {
-    const months: { value: string; label: string }[] = [];
-    months.push({ value: 'semua', label: 'Semua Bulan' });
-    const dates = kapalList.map(k => new Date(k.tanggal));
-    const uniqueMonths = new Set<string>();
-    const now = new Date();
-    uniqueMonths.add(`${now.getFullYear()}-${String(now.getMonth()).padStart(2, '0')}`);
-    dates.forEach(d => {
-      uniqueMonths.add(`${d.getFullYear()}-${String(d.getMonth()).padStart(2, '0')}`);
-    });
-    Array.from(uniqueMonths).sort().reverse().forEach(key => {
-      const [y, m] = key.split('-').map(Number);
-      const d = new Date(y, m, 1);
-      months.push({ value: key, label: format(d, 'MMMM yyyy', { locale: idLocale }) });
-    });
-    return months;
+  const YEAR_OPTIONS = useMemo(() => {
+    const years = new Set<string>();
+    years.add(String(new Date().getFullYear()));
+    kapalList.forEach(k => years.add(String(new Date(k.tanggal).getFullYear())));
+    return [{ value: 'semua', label: 'Semua Tahun' }, ...Array.from(years).sort().reverse().map(y => ({ value: y, label: y }))];
   }, [kapalList]);
+
+  const MONTH_NAMES = [
+    'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
+    'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'
+  ];
+  const MONTH_OPTIONS = useMemo(() => {
+    return [{ value: 'semua', label: 'Semua Bulan' }, ...MONTH_NAMES.map((name, i) => ({ value: String(i), label: name }))];
+  }, []);
   const { t } = useLocale();
 
-  const hasActiveFilter = selectedMonth !== `${new Date().getFullYear()}-${String(new Date().getMonth()).padStart(2, '0')}` || filterJenis !== 'semua';
+  const hasActiveFilter = selectedYear !== String(new Date().getFullYear()) || selectedMonth !== String(new Date().getMonth()) || filterJenis !== 'semua';
 
   const filteredList = useMemo(() => {
     return kapalList.filter((kapal) => {
@@ -62,18 +57,21 @@ export const RiwayatKapal: React.FC<RiwayatKapalProps> = ({
           .toLowerCase().includes(search.toLowerCase());
 
       let matchesDate = true;
-      if (selectedMonth !== 'semua') {
-        const [y, m] = selectedMonth.split('-').map(Number);
-        const monthStart = startOfMonth(new Date(y, m, 1));
-        const monthEnd = endOfMonth(new Date(y, m, 1));
+      if (selectedYear !== 'semua') {
         const kapalDate = new Date(kapal.tanggal);
-        matchesDate = kapalDate >= monthStart && kapalDate <= monthEnd;
+        matchesDate = kapalDate.getFullYear() === Number(selectedYear);
+        if (matchesDate && selectedMonth !== 'semua') {
+          matchesDate = kapalDate.getMonth() === Number(selectedMonth);
+        }
+      } else if (selectedMonth !== 'semua') {
+        const kapalDate = new Date(kapal.tanggal);
+        matchesDate = kapalDate.getMonth() === Number(selectedMonth);
       }
 
       const matchesJenis = filterJenis === 'semua' || kapal.jenisPendataan === filterJenis;
       return matchesSearch && matchesDate && matchesJenis;
     }).sort((a, b) => new Date(b.tanggal).getTime() - new Date(a.tanggal).getTime());
-  }, [kapalList, search, selectedMonth, filterJenis]);
+  }, [kapalList, search, selectedYear, selectedMonth, filterJenis]);
 
   useEffect(() => {
     onFilteredCountChange?.(filteredList.length);
@@ -81,7 +79,8 @@ export const RiwayatKapal: React.FC<RiwayatKapalProps> = ({
 
   const clearFilters = () => {
     const now = new Date();
-    setSelectedMonth(`${now.getFullYear()}-${String(now.getMonth()).padStart(2, '0')}`);
+    setSelectedYear(String(now.getFullYear()));
+    setSelectedMonth(String(now.getMonth()));
     setFilterJenis('semua');
   };
 
@@ -137,16 +136,29 @@ export const RiwayatKapal: React.FC<RiwayatKapalProps> = ({
             </Select>
           </div>
 
-          <div className="space-y-1">
-            <p className="text-xs text-muted-foreground font-medium">Bulan</p>
-            <Select value={selectedMonth} onValueChange={setSelectedMonth}>
-              <SelectTrigger className="h-10"><SelectValue /></SelectTrigger>
-              <SelectContent>
-                {MONTH_OPTIONS.map(opt => (
-                  <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+          <div className="grid grid-cols-2 gap-2">
+            <div className="space-y-1">
+              <p className="text-xs text-muted-foreground font-medium">Tahun</p>
+              <Select value={selectedYear} onValueChange={setSelectedYear}>
+                <SelectTrigger className="h-10"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {YEAR_OPTIONS.map(opt => (
+                    <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1">
+              <p className="text-xs text-muted-foreground font-medium">Bulan</p>
+              <Select value={selectedMonth} onValueChange={setSelectedMonth}>
+                <SelectTrigger className="h-10"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {MONTH_OPTIONS.map(opt => (
+                    <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
           </div>
         </div>
       )}
@@ -156,10 +168,8 @@ export const RiwayatKapal: React.FC<RiwayatKapalProps> = ({
         <div className="flex items-center gap-2 text-xs text-muted-foreground bg-muted px-3 py-2 rounded-lg flex-wrap">
           <Filter className="w-3.5 h-3.5" />
           {filterJenis !== 'semua' && <span className="bg-primary/10 text-primary px-2 py-0.5 rounded-full">{filterJenis === 'ikan' ? '🐟 Ikan' : '🦑 Cumi'}</span>}
-          {selectedMonth !== 'semua' && (() => {
-            const [y, m] = selectedMonth.split('-').map(Number);
-            return <span className="bg-primary/10 text-primary px-2 py-0.5 rounded-full">{format(new Date(y, m, 1), 'MMMM yyyy', { locale: idLocale })}</span>;
-          })()}
+          {selectedYear !== 'semua' && <span className="bg-primary/10 text-primary px-2 py-0.5 rounded-full">{selectedYear}</span>}
+          {selectedMonth !== 'semua' && <span className="bg-primary/10 text-primary px-2 py-0.5 rounded-full">{MONTH_NAMES[Number(selectedMonth)]}</span>}
           <span className="font-medium">({filteredList.length} {t.hasil})</span>
         </div>
       )}
