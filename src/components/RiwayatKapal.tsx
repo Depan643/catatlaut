@@ -17,6 +17,7 @@ interface RiwayatKapalProps {
   onSelectKapal: (kapal: Kapal) => void;
   onTogglePIPP: (id: string) => void;
   onDeleteKapal: (id: string) => void;
+  onFilteredCountChange?: (count: number) => void;
 }
 
 
