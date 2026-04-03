@@ -1,8 +1,9 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useCallback } from 'react';
 import { Entry, JENIS_IKAN, JENIS_CUMI } from '@/types';
 import { format } from 'date-fns';
 import { id as idLocale } from 'date-fns/locale';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
+import { Volume2 } from 'lucide-react';
 
 interface EntryTableProps {
   entries: Entry[];
@@ -32,6 +33,13 @@ interface GroupedEntry {
 }
 
 export const EntryTable: React.FC<EntryTableProps> = ({ entries, onEntryClick, onEntryDoubleClick, jenisPendataan = 'ikan' }) => {
+  const speak = useCallback((text: string) => {
+    window.speechSynthesis.cancel();
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.lang = 'id-ID';
+    utterance.rate = 0.9;
+    window.speechSynthesis.speak(utterance);
+  }, []);
   const groupedEntries = useMemo(() => {
     const groups: Record<string, Entry[]> = {};
     
@@ -79,7 +87,16 @@ export const EntryTable: React.FC<EntryTableProps> = ({ entries, onEntryClick, o
                 minWidth: `${group.columns.length * 100}px`,
               }}
             >
-              <span className="font-bold truncate block">{group.jenis}</span>
+              <div className="flex items-center justify-center gap-1">
+                <span className="font-bold truncate">{group.jenis}</span>
+                <button
+                  onClick={(e) => { e.stopPropagation(); speak(`${group.jenis}, total ${group.entries.reduce((sum, e) => sum + e.berat, 0)} kilogram`); }}
+                  className="p-0.5 rounded hover:bg-white/20 transition-colors flex-shrink-0"
+                  title="Dengarkan"
+                >
+                  <Volume2 className="w-3.5 h-3.5" />
+                </button>
+              </div>
               <span className="text-xs opacity-80">
                 Total: {group.entries.reduce((sum, e) => sum + e.berat, 0).toLocaleString('id-ID')} kg
               </span>
