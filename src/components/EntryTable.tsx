@@ -33,6 +33,13 @@ interface GroupedEntry {
 }
 
 export const EntryTable: React.FC<EntryTableProps> = ({ entries, onEntryClick, onEntryDoubleClick, jenisPendataan = 'ikan' }) => {
+  const speak = useCallback((text: string) => {
+    window.speechSynthesis.cancel();
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.lang = 'id-ID';
+    utterance.rate = 0.9;
+    window.speechSynthesis.speak(utterance);
+  }, []);
   const groupedEntries = useMemo(() => {
     const groups: Record<string, Entry[]> = {};
     
