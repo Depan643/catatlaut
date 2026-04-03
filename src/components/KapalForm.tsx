@@ -162,7 +162,7 @@ export const KapalForm: React.FC<KapalFormProps> = ({
           <MapPin className="w-4 h-4 text-primary" />
           {t.posisiDermaga}
         </Label>
-        <Select value={posisiDermaga} onValueChange={(v) => { if (v === '__lainnya__') { setPosisiDermaga(''); setPosisiDermagaManual(true); } else { setPosisiDermaga(v); setPosisiDermagaManual(false); } }}>
+        <Select value={posisiDermagaManual ? '__lainnya__' : posisiDermaga} onValueChange={(v) => { if (v === '__lainnya__') { setPosisiDermaga(''); setPosisiDermagaManual(true); } else { setPosisiDermaga(v); setPosisiDermagaManual(false); } }}>
           <SelectTrigger className="input-field"><SelectValue placeholder="Pilih posisi dermaga" /></SelectTrigger>
           <SelectContent>
             {POSISI_DERMAGA_OPTIONS.map(opt => (
