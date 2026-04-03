@@ -71,7 +71,7 @@ export const RiwayatKapal: React.FC<RiwayatKapalProps> = ({
       const matchesJenis = filterJenis === 'semua' || kapal.jenisPendataan === filterJenis;
       return matchesSearch && matchesDate && matchesJenis;
     }).sort((a, b) => new Date(b.tanggal).getTime() - new Date(a.tanggal).getTime());
-  }, [kapalList, search, selectedMonth, filterJenis]);
+  }, [kapalList, search, selectedYear, selectedMonth, filterJenis]);
 
   useEffect(() => {
     onFilteredCountChange?.(filteredList.length);
