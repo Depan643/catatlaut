@@ -87,7 +87,16 @@ export const EntryTable: React.FC<EntryTableProps> = ({ entries, onEntryClick, o
                 minWidth: `${group.columns.length * 100}px`,
               }}
             >
-              <span className="font-bold truncate block">{group.jenis}</span>
+              <div className="flex items-center justify-center gap-1">
+                <span className="font-bold truncate">{group.jenis}</span>
+                <button
+                  onClick={(e) => { e.stopPropagation(); speak(`${group.jenis}, total ${group.entries.reduce((sum, e) => sum + e.berat, 0)} kilogram`); }}
+                  className="p-0.5 rounded hover:bg-white/20 transition-colors flex-shrink-0"
+                  title="Dengarkan"
+                >
+                  <Volume2 className="w-3.5 h-3.5" />
+                </button>
+              </div>
               <span className="text-xs opacity-80">
                 Total: {group.entries.reduce((sum, e) => sum + e.berat, 0).toLocaleString('id-ID')} kg
               </span>
