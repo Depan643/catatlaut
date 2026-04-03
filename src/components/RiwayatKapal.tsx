@@ -72,8 +72,12 @@ export const RiwayatKapal: React.FC<RiwayatKapalProps> = ({
 
       const matchesJenis = filterJenis === 'semua' || kapal.jenisPendataan === filterJenis;
       return matchesSearch && matchesDate && matchesJenis;
-    });
+    }).sort((a, b) => new Date(b.tanggal).getTime() - new Date(a.tanggal).getTime());
   }, [kapalList, search, selectedMonth, filterJenis]);
+
+  useEffect(() => {
+    onFilteredCountChange?.(filteredList.length);
+  }, [filteredList.length, onFilteredCountChange]);
 
   const clearFilters = () => {
     const now = new Date();
