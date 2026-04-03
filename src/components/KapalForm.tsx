@@ -141,7 +141,7 @@ export const KapalForm: React.FC<KapalFormProps> = ({
           <Crosshair className="w-4 h-4 text-primary" />
           {t.alatTangkap}
         </Label>
-        <Select value={alatTangkap} onValueChange={(v) => { if (v === '__lainnya__') { setAlatTangkap(''); setAlatTangkapManual(true); } else { setAlatTangkap(v); setAlatTangkapManual(false); } }}>
+        <Select value={alatTangkapManual ? '__lainnya__' : alatTangkap} onValueChange={(v) => { if (v === '__lainnya__') { setAlatTangkap(''); setAlatTangkapManual(true); } else { setAlatTangkap(v); setAlatTangkapManual(false); } }}>
           <SelectTrigger className="input-field"><SelectValue placeholder="Pilih alat tangkap" /></SelectTrigger>
           <SelectContent>
             {ALAT_TANGKAP_OPTIONS.map(opt => (
