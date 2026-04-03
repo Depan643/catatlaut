@@ -129,8 +129,19 @@ export const KapalForm: React.FC<KapalFormProps> = ({
           <Crosshair className="w-4 h-4 text-primary" />
           {t.alatTangkap}
         </Label>
-        <Input value={alatTangkap} onChange={(e) => setAlatTangkap(e.target.value)}
-          placeholder={t.alatTangkap} className="input-field" />
+        <Select value={alatTangkap} onValueChange={(v) => { if (v === '__lainnya__') { setAlatTangkap(''); setAlatTangkapManual(true); } else { setAlatTangkap(v); setAlatTangkapManual(false); } }}>
+          <SelectTrigger className="input-field"><SelectValue placeholder="Pilih alat tangkap" /></SelectTrigger>
+          <SelectContent>
+            {ALAT_TANGKAP_OPTIONS.map(opt => (
+              <SelectItem key={opt} value={opt}>{opt}</SelectItem>
+            ))}
+            <SelectItem value="__lainnya__">Lainnya...</SelectItem>
+          </SelectContent>
+        </Select>
+        {alatTangkapManual && (
+          <Input value={alatTangkap} onChange={(e) => setAlatTangkap(e.target.value)}
+            placeholder="Ketik alat tangkap lainnya" className="input-field" />
+        )}
       </div>
 
       {/* Posisi Dermaga */}
@@ -139,8 +150,19 @@ export const KapalForm: React.FC<KapalFormProps> = ({
           <MapPin className="w-4 h-4 text-primary" />
           {t.posisiDermaga}
         </Label>
-        <Input value={posisiDermaga} onChange={(e) => setPosisiDermaga(e.target.value)}
-          placeholder={t.posisiDermaga} className="input-field" />
+        <Select value={posisiDermaga} onValueChange={(v) => { if (v === '__lainnya__') { setPosisiDermaga(''); setPosisiDermagaManual(true); } else { setPosisiDermaga(v); setPosisiDermagaManual(false); } }}>
+          <SelectTrigger className="input-field"><SelectValue placeholder="Pilih posisi dermaga" /></SelectTrigger>
+          <SelectContent>
+            {POSISI_DERMAGA_OPTIONS.map(opt => (
+              <SelectItem key={opt} value={opt}>{opt}</SelectItem>
+            ))}
+            <SelectItem value="__lainnya__">Lainnya...</SelectItem>
+          </SelectContent>
+        </Select>
+        {posisiDermagaManual && (
+          <Input value={posisiDermaga} onChange={(e) => setPosisiDermaga(e.target.value)}
+            placeholder="Ketik posisi dermaga lainnya" className="input-field" />
+        )}
       </div>
 
       {/* Tanggal Bongkar */}

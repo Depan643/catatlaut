@@ -128,6 +128,7 @@ const Index = () => {
               onSelectKapal={handleSelectKapal}
               onTogglePIPP={togglePIPP}
               onDeleteKapal={handleDeleteKapal}
+              onFilteredCountChange={setFilteredKapalCount}
             />
           </TabsContent>
         </Tabs>
