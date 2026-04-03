@@ -12,6 +12,9 @@ import { format } from 'date-fns';
 import { id as idLocale } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
 
+const ALAT_TANGKAP_OPTIONS = ['JTB', 'JJB', 'GILLNET'];
+const POSISI_DERMAGA_OPTIONS = ['DERMAGA BARU', 'DERMAGA EKOR KUNING', 'DERMAGA DEPAN TPI', 'DERMAGA POJOK TPI'];
+
 interface KapalFormProps {
   onSubmit: (data: {
     namaKapal: string;
