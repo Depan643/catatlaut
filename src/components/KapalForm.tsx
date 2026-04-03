@@ -55,6 +55,14 @@ export const KapalForm: React.FC<KapalFormProps> = ({
   const [alatTangkap, setAlatTangkap] = useState(initialData?.alatTangkap || '');
   const [posisiDermaga, setPosisiDermaga] = useState(initialData?.posisiDermaga || '');
   const [tanggalBongkar, setTanggalBongkar] = useState<Date | undefined>(initialData?.tanggalBongkar);
+  const [alatTangkapManual, setAlatTangkapManual] = useState(() => {
+    const v = initialData?.alatTangkap || '';
+    return v !== '' && !ALAT_TANGKAP_OPTIONS.includes(v);
+  });
+  const [posisiDermagaManual, setPosisiDermagaManual] = useState(() => {
+    const v = initialData?.posisiDermaga || '';
+    return v !== '' && !POSISI_DERMAGA_OPTIONS.includes(v);
+  });
 
   const formatGT = (value: string) => value.replace(/\D/g, '').slice(0, 3);
   const formatNo = (value: string) => value.replace(/\D/g, '').slice(0, 4);
