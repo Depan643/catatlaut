@@ -79,7 +79,8 @@ export const RiwayatKapal: React.FC<RiwayatKapalProps> = ({
 
   const clearFilters = () => {
     const now = new Date();
-    setSelectedMonth(`${now.getFullYear()}-${String(now.getMonth()).padStart(2, '0')}`);
+    setSelectedYear(String(now.getFullYear()));
+    setSelectedMonth(String(now.getMonth()));
     setFilterJenis('semua');
   };
 
