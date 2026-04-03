@@ -57,12 +57,15 @@ export const RiwayatKapal: React.FC<RiwayatKapalProps> = ({
           .toLowerCase().includes(search.toLowerCase());
 
       let matchesDate = true;
-      if (selectedMonth !== 'semua') {
-        const [y, m] = selectedMonth.split('-').map(Number);
-        const monthStart = startOfMonth(new Date(y, m, 1));
-        const monthEnd = endOfMonth(new Date(y, m, 1));
+      if (selectedYear !== 'semua') {
         const kapalDate = new Date(kapal.tanggal);
-        matchesDate = kapalDate >= monthStart && kapalDate <= monthEnd;
+        matchesDate = kapalDate.getFullYear() === Number(selectedYear);
+        if (matchesDate && selectedMonth !== 'semua') {
+          matchesDate = kapalDate.getMonth() === Number(selectedMonth);
+        }
+      } else if (selectedMonth !== 'semua') {
+        const kapalDate = new Date(kapal.tanggal);
+        matchesDate = kapalDate.getMonth() === Number(selectedMonth);
       }
 
       const matchesJenis = filterJenis === 'semua' || kapal.jenisPendataan === filterJenis;
