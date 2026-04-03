@@ -1,8 +1,9 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useCallback } from 'react';
 import { Entry, JENIS_IKAN, JENIS_CUMI } from '@/types';
 import { format } from 'date-fns';
 import { id as idLocale } from 'date-fns/locale';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
+import { Volume2 } from 'lucide-react';
 
 interface EntryTableProps {
   entries: Entry[];
