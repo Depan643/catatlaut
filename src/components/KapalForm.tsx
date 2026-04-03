@@ -4,12 +4,16 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
 import { useLocale } from '@/i18n/useLocale';
 import { format } from 'date-fns';
 import { id as idLocale } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
+
+const ALAT_TANGKAP_OPTIONS = ['JTB', 'JJB', 'GILLNET'];
+const POSISI_DERMAGA_OPTIONS = ['DERMAGA BARU', 'DERMAGA EKOR KUNING', 'DERMAGA DEPAN TPI', 'DERMAGA POJOK TPI'];
 
 interface KapalFormProps {
   onSubmit: (data: {
@@ -51,6 +55,14 @@ export const KapalForm: React.FC<KapalFormProps> = ({
   const [alatTangkap, setAlatTangkap] = useState(initialData?.alatTangkap || '');
   const [posisiDermaga, setPosisiDermaga] = useState(initialData?.posisiDermaga || '');
   const [tanggalBongkar, setTanggalBongkar] = useState<Date | undefined>(initialData?.tanggalBongkar);
+  const [alatTangkapManual, setAlatTangkapManual] = useState(() => {
+    const v = initialData?.alatTangkap || '';
+    return v !== '' && !ALAT_TANGKAP_OPTIONS.includes(v);
+  });
+  const [posisiDermagaManual, setPosisiDermagaManual] = useState(() => {
+    const v = initialData?.posisiDermaga || '';
+    return v !== '' && !POSISI_DERMAGA_OPTIONS.includes(v);
+  });
 
   const formatGT = (value: string) => value.replace(/\D/g, '').slice(0, 3);
   const formatNo = (value: string) => value.replace(/\D/g, '').slice(0, 4);
@@ -129,8 +141,19 @@ export const KapalForm: React.FC<KapalFormProps> = ({
           <Crosshair className="w-4 h-4 text-primary" />
           {t.alatTangkap}
         </Label>
-        <Input value={alatTangkap} onChange={(e) => setAlatTangkap(e.target.value)}
-          placeholder={t.alatTangkap} className="input-field" />
+        <Select value={alatTangkapManual ? '__lainnya__' : alatTangkap} onValueChange={(v) => { if (v === '__lainnya__') { setAlatTangkap(''); setAlatTangkapManual(true); } else { setAlatTangkap(v); setAlatTangkapManual(false); } }}>
+          <SelectTrigger className="input-field"><SelectValue placeholder="Pilih alat tangkap" /></SelectTrigger>
+          <SelectContent>
+            {ALAT_TANGKAP_OPTIONS.map(opt => (
+              <SelectItem key={opt} value={opt}>{opt}</SelectItem>
+            ))}
+            <SelectItem value="__lainnya__">Lainnya...</SelectItem>
+          </SelectContent>
+        </Select>
+        {alatTangkapManual && (
+          <Input value={alatTangkap} onChange={(e) => setAlatTangkap(e.target.value)}
+            placeholder="Ketik alat tangkap lainnya" className="input-field" />
+        )}
       </div>
 
       {/* Posisi Dermaga */}
@@ -139,8 +162,19 @@ export const KapalForm: React.FC<KapalFormProps> = ({
           <MapPin className="w-4 h-4 text-primary" />
           {t.posisiDermaga}
         </Label>
-        <Input value={posisiDermaga} onChange={(e) => setPosisiDermaga(e.target.value)}
-          placeholder={t.posisiDermaga} className="input-field" />
+        <Select value={posisiDermagaManual ? '__lainnya__' : posisiDermaga} onValueChange={(v) => { if (v === '__lainnya__') { setPosisiDermaga(''); setPosisiDermagaManual(true); } else { setPosisiDermaga(v); setPosisiDermagaManual(false); } }}>
+          <SelectTrigger className="input-field"><SelectValue placeholder="Pilih posisi dermaga" /></SelectTrigger>
+          <SelectContent>
+            {POSISI_DERMAGA_OPTIONS.map(opt => (
+              <SelectItem key={opt} value={opt}>{opt}</SelectItem>
+            ))}
+            <SelectItem value="__lainnya__">Lainnya...</SelectItem>
+          </SelectContent>
+        </Select>
+        {posisiDermagaManual && (
+          <Input value={posisiDermaga} onChange={(e) => setPosisiDermaga(e.target.value)}
+            placeholder="Ketik posisi dermaga lainnya" className="input-field" />
+        )}
       </div>
 
       {/* Tanggal Bongkar */}

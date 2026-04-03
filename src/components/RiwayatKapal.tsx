@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { Search, CheckCircle2, ChevronRight, Ship, Filter, Trash2, X } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Kapal } from '@/types';
@@ -17,11 +17,12 @@ interface RiwayatKapalProps {
   onSelectKapal: (kapal: Kapal) => void;
   onTogglePIPP: (id: string) => void;
   onDeleteKapal: (id: string) => void;
+  onFilteredCountChange?: (count: number) => void;
 }
 
 
 export const RiwayatKapal: React.FC<RiwayatKapalProps> = ({
-  kapalList, onSelectKapal, onTogglePIPP, onDeleteKapal,
+  kapalList, onSelectKapal, onTogglePIPP, onDeleteKapal, onFilteredCountChange,
 }) => {
   const [search, setSearch] = useState('');
   const [pippConfirmId, setPippConfirmId] = useState<string | null>(null);
@@ -71,8 +72,12 @@ export const RiwayatKapal: React.FC<RiwayatKapalProps> = ({
 
       const matchesJenis = filterJenis === 'semua' || kapal.jenisPendataan === filterJenis;
       return matchesSearch && matchesDate && matchesJenis;
-    });
+    }).sort((a, b) => new Date(b.tanggal).getTime() - new Date(a.tanggal).getTime());
   }, [kapalList, search, selectedMonth, filterJenis]);
+
+  useEffect(() => {
+    onFilteredCountChange?.(filteredList.length);
+  }, [filteredList.length, onFilteredCountChange]);
 
   const clearFilters = () => {
     const now = new Date();
@@ -188,7 +193,7 @@ export const RiwayatKapal: React.FC<RiwayatKapalProps> = ({
                     <p className="text-xs text-muted-foreground">🎣 {kapal.alatTangkap}</p>
                   )}
               <div className="flex items-center gap-3 mt-2 text-xs sm:text-sm flex-wrap">
-                    <span className="text-muted-foreground">{formatDateLabel(new Date(kapal.tanggal))}</span>
+                    <span className="text-muted-foreground">📅 {format(new Date(kapal.tanggal), 'd MMM yyyy', { locale: idLocale })}</span>
                     <span className="font-semibold text-foreground">{getTotalBerat(kapal).toLocaleString('id-ID')} kg</span>
                     <span className="text-muted-foreground">({kapal.entries.length} {t.entri})</span>
                     {kapal.donePIPP && (

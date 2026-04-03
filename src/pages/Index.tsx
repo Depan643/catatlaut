@@ -21,6 +21,7 @@ const Index = () => {
   const { t } = useLocale();
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [displayName, setDisplayName] = useState<string | null>(null);
+  const [filteredKapalCount, setFilteredKapalCount] = useState(kapalList.length);
 
   useEffect(() => {
     if (!user) return;
@@ -107,7 +108,7 @@ const Index = () => {
             <TabsTrigger value="riwayat"
               className="flex-1 h-full rounded-lg data-[state=active]:bg-card data-[state=active]:shadow-sm">
               <History className="w-5 h-5 mr-2" />
-              {t.riwayat} ({kapalList.length})
+              {t.riwayat} ({filteredKapalCount})
             </TabsTrigger>
           </TabsList>
 
@@ -127,6 +128,7 @@ const Index = () => {
               onSelectKapal={handleSelectKapal}
               onTogglePIPP={togglePIPP}
               onDeleteKapal={handleDeleteKapal}
+              onFilteredCountChange={setFilteredKapalCount}
             />
           </TabsContent>
         </Tabs>

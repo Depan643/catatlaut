@@ -90,7 +90,7 @@ export const EntryTable: React.FC<EntryTableProps> = ({ entries, onEntryClick, o
               <div className="flex items-center justify-center gap-1">
                 <span className="font-bold truncate">{group.jenis}</span>
                 <button
-                  onClick={(e) => { e.stopPropagation(); const beratList = group.entries.map(e => `${e.berat} kilogram`).join(', '); const total = group.entries.reduce((sum, e) => sum + e.berat, 0); speak(`${group.jenis}. ${beratList}. Total ${total} kilogram`); }}
+                  onClick={(e) => { e.stopPropagation(); const beratList = group.entries.map(e => `${e.berat}`).join(', tambah '); const total = group.entries.reduce((sum, e) => sum + e.berat, 0); speak(`${group.jenis}, ${beratList}, total ${total}`); }}
                   className="p-0.5 rounded hover:bg-white/20 transition-colors flex-shrink-0"
                   title="Dengarkan"
                 >
