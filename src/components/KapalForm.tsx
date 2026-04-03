@@ -131,7 +131,7 @@ export const KapalForm: React.FC<KapalFormProps> = ({
             placeholder="Ab" maxLength={2} className="input-field text-center font-mono uppercase" />
         </div>
         <p className="text-xs text-muted-foreground">
-          Format: GT.{gtValue.padStart(3, '0') || '000'} No.{noValue.padStart(4, '0') || '0000'}/{hurufValue || 'Ab'}
+          Format: GT.{gtValue || '000'} No.{noValue.padStart(4, '0') || '0000'}/{hurufValue || 'Ab'}
         </p>
       </div>
 

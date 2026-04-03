@@ -26,30 +26,25 @@ export const RiwayatKapal: React.FC<RiwayatKapalProps> = ({
 }) => {
   const [search, setSearch] = useState('');
   const [pippConfirmId, setPippConfirmId] = useState<string | null>(null);
-  const [selectedMonth, setSelectedMonth] = useState<string>(() => {
-    const now = new Date();
-    return `${now.getFullYear()}-${String(now.getMonth()).padStart(2, '0')}`;
-  });
+  const [selectedYear, setSelectedYear] = useState<string>(() => String(new Date().getFullYear()));
+  const [selectedMonth, setSelectedMonth] = useState<string>(() => String(new Date().getMonth()));
   const [filterJenis, setFilterJenis] = useState<string>('semua');
   const [showFilter, setShowFilter] = useState(false);
 
-  const MONTH_OPTIONS = useMemo(() => {
-    const months: { value: string; label: string }[] = [];
-    months.push({ value: 'semua', label: 'Semua Bulan' });
-    const dates = kapalList.map(k => new Date(k.tanggal));
-    const uniqueMonths = new Set<string>();
-    const now = new Date();
-    uniqueMonths.add(`${now.getFullYear()}-${String(now.getMonth()).padStart(2, '0')}`);
-    dates.forEach(d => {
-      uniqueMonths.add(`${d.getFullYear()}-${String(d.getMonth()).padStart(2, '0')}`);
-    });
-    Array.from(uniqueMonths).sort().reverse().forEach(key => {
-      const [y, m] = key.split('-').map(Number);
-      const d = new Date(y, m, 1);
-      months.push({ value: key, label: format(d, 'MMMM yyyy', { locale: idLocale }) });
-    });
-    return months;
+  const YEAR_OPTIONS = useMemo(() => {
+    const years = new Set<string>();
+    years.add(String(new Date().getFullYear()));
+    kapalList.forEach(k => years.add(String(new Date(k.tanggal).getFullYear())));
+    return [{ value: 'semua', label: 'Semua Tahun' }, ...Array.from(years).sort().reverse().map(y => ({ value: y, label: y }))];
   }, [kapalList]);
+
+  const MONTH_NAMES = [
+    'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
+    'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'
+  ];
+  const MONTH_OPTIONS = useMemo(() => {
+    return [{ value: 'semua', label: 'Semua Bulan' }, ...MONTH_NAMES.map((name, i) => ({ value: String(i), label: name }))];
+  }, []);
   const { t } = useLocale();
 
   const hasActiveFilter = selectedMonth !== `${new Date().getFullYear()}-${String(new Date().getMonth()).padStart(2, '0')}` || filterJenis !== 'semua';
