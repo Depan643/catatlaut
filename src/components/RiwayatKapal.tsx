@@ -22,7 +22,7 @@ interface RiwayatKapalProps {
 
 
 export const RiwayatKapal: React.FC<RiwayatKapalProps> = ({
-  kapalList, onSelectKapal, onTogglePIPP, onDeleteKapal,
+  kapalList, onSelectKapal, onTogglePIPP, onDeleteKapal, onFilteredCountChange,
 }) => {
   const [search, setSearch] = useState('');
   const [pippConfirmId, setPippConfirmId] = useState<string | null>(null);
