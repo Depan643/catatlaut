@@ -136,16 +136,29 @@ export const RiwayatKapal: React.FC<RiwayatKapalProps> = ({
             </Select>
           </div>
 
-          <div className="space-y-1">
-            <p className="text-xs text-muted-foreground font-medium">Bulan</p>
-            <Select value={selectedMonth} onValueChange={setSelectedMonth}>
-              <SelectTrigger className="h-10"><SelectValue /></SelectTrigger>
-              <SelectContent>
-                {MONTH_OPTIONS.map(opt => (
-                  <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+          <div className="grid grid-cols-2 gap-2">
+            <div className="space-y-1">
+              <p className="text-xs text-muted-foreground font-medium">Tahun</p>
+              <Select value={selectedYear} onValueChange={setSelectedYear}>
+                <SelectTrigger className="h-10"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {YEAR_OPTIONS.map(opt => (
+                    <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1">
+              <p className="text-xs text-muted-foreground font-medium">Bulan</p>
+              <Select value={selectedMonth} onValueChange={setSelectedMonth}>
+                <SelectTrigger className="h-10"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {MONTH_OPTIONS.map(opt => (
+                    <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
           </div>
         </div>
       )}
@@ -155,10 +168,8 @@ export const RiwayatKapal: React.FC<RiwayatKapalProps> = ({
         <div className="flex items-center gap-2 text-xs text-muted-foreground bg-muted px-3 py-2 rounded-lg flex-wrap">
           <Filter className="w-3.5 h-3.5" />
           {filterJenis !== 'semua' && <span className="bg-primary/10 text-primary px-2 py-0.5 rounded-full">{filterJenis === 'ikan' ? '🐟 Ikan' : '🦑 Cumi'}</span>}
-          {selectedMonth !== 'semua' && (() => {
-            const [y, m] = selectedMonth.split('-').map(Number);
-            return <span className="bg-primary/10 text-primary px-2 py-0.5 rounded-full">{format(new Date(y, m, 1), 'MMMM yyyy', { locale: idLocale })}</span>;
-          })()}
+          {selectedYear !== 'semua' && <span className="bg-primary/10 text-primary px-2 py-0.5 rounded-full">{selectedYear}</span>}
+          {selectedMonth !== 'semua' && <span className="bg-primary/10 text-primary px-2 py-0.5 rounded-full">{MONTH_NAMES[Number(selectedMonth)]}</span>}
           <span className="font-medium">({filteredList.length} {t.hasil})</span>
         </div>
       )}
