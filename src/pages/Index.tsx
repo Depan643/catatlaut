@@ -107,7 +107,7 @@ const Index = () => {
             <TabsTrigger value="riwayat"
               className="flex-1 h-full rounded-lg data-[state=active]:bg-card data-[state=active]:shadow-sm">
               <History className="w-5 h-5 mr-2" />
-              {t.riwayat} ({kapalList.length})
+              {t.riwayat} ({filteredKapalCount})
             </TabsTrigger>
           </TabsList>
 
