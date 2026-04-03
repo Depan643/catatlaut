@@ -80,7 +80,7 @@ export const KapalForm: React.FC<KapalFormProps> = ({
     onSubmit({
       namaKapal: `KM. ${namaKapal.trim()}`,
       tandaSelar: {
-        gt: gtValue.padStart(3, '0'),
+        gt: gtValue,
         no: noValue.padStart(4, '0'),
         huruf: hurufValue,
       },
