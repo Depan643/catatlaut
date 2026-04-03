@@ -2,7 +2,7 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { Search, CheckCircle2, ChevronRight, Ship, Filter, Trash2, X } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Kapal } from '@/types';
-import { format, isToday, isYesterday, startOfMonth, endOfMonth } from 'date-fns';
+import { format, isToday, isYesterday } from 'date-fns';
 import { id as idLocale } from 'date-fns/locale';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
