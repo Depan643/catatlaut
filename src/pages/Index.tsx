@@ -21,6 +21,7 @@ const Index = () => {
   const { t } = useLocale();
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [displayName, setDisplayName] = useState<string | null>(null);
+  const [filteredKapalCount, setFilteredKapalCount] = useState(kapalList.length);
 
   useEffect(() => {
     if (!user) return;
