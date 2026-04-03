@@ -47,7 +47,7 @@ export const RiwayatKapal: React.FC<RiwayatKapalProps> = ({
   }, []);
   const { t } = useLocale();
 
-  const hasActiveFilter = selectedMonth !== `${new Date().getFullYear()}-${String(new Date().getMonth()).padStart(2, '0')}` || filterJenis !== 'semua';
+  const hasActiveFilter = selectedYear !== String(new Date().getFullYear()) || selectedMonth !== String(new Date().getMonth()) || filterJenis !== 'semua';
 
   const filteredList = useMemo(() => {
     return kapalList.filter((kapal) => {
