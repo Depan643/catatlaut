@@ -42,6 +42,7 @@ const InputPage = () => {
     updateKapal,
     togglePIPP,
     loading,
+    kapalList,
   } = useKapal();
 
   const { addRecentJenis, getRecentJenis } = useRecentJenis();
