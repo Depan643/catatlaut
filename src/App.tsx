@@ -17,6 +17,7 @@ import Admin from "./pages/Admin";
 import Auth from "./pages/Auth";
 
 import LaporanBulanan from "./pages/LaporanBulanan";
+import LaporanPerikanan from "./pages/LaporanPerikanan";
 import ViewProfile from "./pages/ViewProfile";
 import NotFound from "./pages/NotFound";
 
@@ -85,6 +86,7 @@ const App = () => (
             <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
             
             <Route path="/laporan-bulanan" element={<ProtectedRoute><LaporanBulanan /></ProtectedRoute>} />
+            <Route path="/laporan-perikanan" element={<ProtectedRoute><LaporanPerikanan /></ProtectedRoute>} />
             <Route path="/admin" element={<AdminRoute><Admin /></AdminRoute>} />
             <Route path="*" element={<NotFound />} />
           </Routes>
