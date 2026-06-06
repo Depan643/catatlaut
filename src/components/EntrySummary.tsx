@@ -26,7 +26,8 @@ interface SummaryItem {
 const getCumiCategory = (jenis: string): string => {
   if (KATEGORI_CUMI.cumiCumi.includes(jenis)) return 'Cumi-Cumi';
   if (KATEGORI_CUMI.gurita.includes(jenis)) return 'Gurita';
-  return 'Sotong';
+  if (KATEGORI_CUMI.sotong.includes(jenis)) return 'Sotong';
+  return 'Ikan Lainnya';
 };
 
 export const EntrySummary: React.FC<EntrySummaryProps> = ({ entries, jenisPendataan = 'ikan' }) => {
@@ -71,12 +72,12 @@ export const EntrySummary: React.FC<EntrySummaryProps> = ({ entries, jenisPendat
 
   const grandTotal = summary.reduce((sum, item) => sum + item.totalBerat, 0);
 
-  // Category totals for cumi
+  // Category totals for cumi (includes Ikan Lainnya if fish names entered in cumi mode)
   const categoryTotals = useMemo(() => {
     if (jenisPendataan !== 'cumi') return null;
-    const totals: Record<string, number> = { 'Cumi-Cumi': 0, Sotong: 0, Gurita: 0 };
+    const totals: Record<string, number> = { 'Cumi-Cumi': 0, Sotong: 0, Gurita: 0, 'Ikan Lainnya': 0 };
     summary.forEach((item) => {
-      if (item.kategori) totals[item.kategori] += item.totalBerat;
+      if (item.kategori) totals[item.kategori] = (totals[item.kategori] || 0) + item.totalBerat;
     });
     return Object.entries(totals).filter(([, v]) => v > 0);
   }, [summary, jenisPendataan]);

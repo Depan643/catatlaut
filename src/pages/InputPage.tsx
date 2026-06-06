@@ -3,15 +3,14 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useKapal } from '@/contexts/KapalContext';
 import { useRecentJenis } from '@/hooks/useRecentJenis';
-import { JenisIkanSidebar } from '@/components/JenisIkanSidebar';
-import { JenisCumiSidebar } from '@/components/JenisCumiSidebar';
+import { JenisPickerSheet } from '@/components/JenisPickerSheet';
+import { MultiKapalSwitcher } from '@/components/MultiKapalSwitcher';
 import { BeratInput } from '@/components/BeratInput';
 import { EntryTable } from '@/components/EntryTable';
 import { EntrySummary } from '@/components/EntrySummary';
 import { EntryList } from '@/components/EntryList';
 import { KapalForm } from '@/components/KapalForm';
 import { ExportDropdown } from '@/components/ExportDropdown';
-import { RecentJenisPicker } from '@/components/RecentJenisPicker';
 import { KapalPhotoManager } from '@/components/KapalPhotoManager';
 import { DarkModeToggle } from '@/components/DarkModeToggle';
 import {
@@ -43,6 +42,7 @@ const InputPage = () => {
     updateKapal,
     togglePIPP,
     loading,
+    kapalList,
   } = useKapal();
 
   const { addRecentJenis, getRecentJenis } = useRecentJenis();
@@ -312,7 +312,9 @@ const InputPage = () => {
       </div>
 
       {/* Main Content */}
-      <main className="flex-1 flex overflow-hidden">
+      <main className="flex-1 flex flex-col overflow-hidden">
+        <MultiKapalSwitcher kapalList={kapalList} currentKapalId={kapal.id} />
+
         {isLocked && viewMode === 'input' && (
           <div className="flex-1 flex items-center justify-center p-6">
             <div className="text-center">
@@ -323,59 +325,25 @@ const InputPage = () => {
           </div>
         )}
         {viewMode === 'input' && !isLocked && (
-          <>
-            {kapal.jenisPendataan === 'ikan' && (
-              <JenisIkanSidebar
-                onSelect={(jenis) => { setSelectedJenis(jenis); setSidebarOpen(false); }}
-                selectedJenis={selectedJenis}
-                recentItems={recentItems}
-                collapsed={!sidebarOpen}
-                onCollapsedChange={(collapsed) => handleSidebarToggle(!collapsed)}
-                weighedJenis={weighedJenis}
-                onClearSelection={() => { setSelectedJenis(''); setSidebarOpen(true); }}
-              />
+          <div className="flex-1 p-3 overflow-y-auto space-y-3">
+            <JenisPickerSheet
+              jenisPendataan={kapal.jenisPendataan}
+              selectedJenis={selectedJenis}
+              onSelect={setSelectedJenis}
+              recentItems={recentItems}
+              weighedJenis={weighedJenis}
+            />
+            {selectedJenis ? (
+              <div className="animate-slide-up space-y-2">
+                <div className="section-header text-sm">Input Berat - {selectedJenis}</div>
+                <BeratInput selectedJenis={selectedJenis} onConfirm={handleAddEntry} />
+              </div>
+            ) : (
+              <div className="flex items-center justify-center h-40 text-muted-foreground text-sm text-center px-4">
+                <p>Pilih jenis {kapal.jenisPendataan} dari rekomendasi di atas atau tombol pilih jenis</p>
+              </div>
             )}
-            {kapal.jenisPendataan === 'cumi' && (
-              <JenisCumiSidebar
-                onSelect={(jenis) => { setSelectedJenis(jenis); setSidebarOpen(false); }}
-                selectedJenis={selectedJenis}
-                recentItems={recentItems}
-                collapsed={!sidebarOpen}
-                onCollapsedChange={(collapsed) => handleSidebarToggle(!collapsed)}
-                weighedJenis={weighedJenis}
-                onClearSelection={() => { setSelectedJenis(''); setSidebarOpen(true); }}
-              />
-            )}
-
-            <div className="flex-1 p-3 overflow-y-auto">
-              {!sidebarOpen && selectedJenis && (
-                <div className="animate-slide-up space-y-2">
-                  {recentItems.length > 0 && (
-                    <div className="mb-2">
-                      <RecentJenisPicker recentItems={recentItems} selectedJenis={selectedJenis} onSelect={setSelectedJenis} />
-                    </div>
-                  )}
-                  <div className="section-header text-sm">Input Berat - {selectedJenis}</div>
-                  <BeratInput selectedJenis={selectedJenis} onConfirm={handleAddEntry} />
-                </div>
-              )}
-              {sidebarOpen && !selectedJenis && (
-                <div className="flex items-center justify-center h-full text-muted-foreground">
-                  <p>← Pilih jenis {kapal.jenisPendataan} dari daftar di samping</p>
-                </div>
-              )}
-              {!sidebarOpen && !selectedJenis && (
-                <div className="space-y-3">
-                  {recentItems.length > 0 && (
-                    <RecentJenisPicker recentItems={recentItems} selectedJenis={selectedJenis} onSelect={setSelectedJenis} />
-                  )}
-                  <div className="flex items-center justify-center h-48 text-muted-foreground">
-                    <p>Pilih jenis {kapal.jenisPendataan} dari daftar terakhir atau buka sidebar</p>
-                  </div>
-                </div>
-              )}
-            </div>
-          </>
+          </div>
         )}
 
         {viewMode === 'tabel' && (
