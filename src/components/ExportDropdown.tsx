@@ -32,7 +32,8 @@ interface ExportDropdownProps {
 const getCumiCategory = (jenis: string): string => {
   if (KATEGORI_CUMI.cumiCumi.includes(jenis)) return 'Cumi-Cumi';
   if (KATEGORI_CUMI.gurita.includes(jenis)) return 'Gurita';
-  return 'Sotong';
+  if (KATEGORI_CUMI.sotong.includes(jenis)) return 'Sotong';
+  return 'Ikan Lainnya';
 };
 
 const groupEntriesByJenis = (entries: Entry[]) => {
