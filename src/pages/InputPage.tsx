@@ -3,15 +3,14 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useKapal } from '@/contexts/KapalContext';
 import { useRecentJenis } from '@/hooks/useRecentJenis';
-import { JenisIkanSidebar } from '@/components/JenisIkanSidebar';
-import { JenisCumiSidebar } from '@/components/JenisCumiSidebar';
+import { JenisPickerSheet } from '@/components/JenisPickerSheet';
+import { MultiKapalSwitcher } from '@/components/MultiKapalSwitcher';
 import { BeratInput } from '@/components/BeratInput';
 import { EntryTable } from '@/components/EntryTable';
 import { EntrySummary } from '@/components/EntrySummary';
 import { EntryList } from '@/components/EntryList';
 import { KapalForm } from '@/components/KapalForm';
 import { ExportDropdown } from '@/components/ExportDropdown';
-import { RecentJenisPicker } from '@/components/RecentJenisPicker';
 import { KapalPhotoManager } from '@/components/KapalPhotoManager';
 import { DarkModeToggle } from '@/components/DarkModeToggle';
 import {
