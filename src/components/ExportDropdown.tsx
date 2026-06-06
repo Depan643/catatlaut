@@ -657,6 +657,14 @@ export const ExportDropdown: React.FC<ExportDropdownProps> = ({ kapal }) => {
       if (y > doc.internal.pageSize.getHeight() - 60) { doc.addPage(); y = 20; }
       buildSection('DATA GURITA', guritaJenis);
 
+      // Tambah section "Ikan Lainnya" jika ada jenis ikan yang ter-entry di pendataan cumi
+      const knownCumi = new Set([...cumiCumiJenis, ...sotongJenis, ...guritaJenis]);
+      const ikanLainnya = Object.keys(grouped).filter(j => !knownCumi.has(j));
+      if (ikanLainnya.length > 0) {
+        if (y > doc.internal.pageSize.getHeight() - 60) { doc.addPage(); y = 20; }
+        buildSection('DATA IKAN LAINNYA', ikanLainnya);
+      }
+
       // Grand total
       const grandTotal = kapal.entries.reduce((s, e) => s + e.berat, 0);
       doc.setFontSize(10);
