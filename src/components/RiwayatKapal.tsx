@@ -1,5 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { Search, CheckCircle2, ChevronRight, Ship, Filter, Trash2, X } from 'lucide-react';
+import { Search, CheckCircle2, ChevronRight, Ship, Filter, Trash2, X, Layers } from 'lucide-react';
+import { useSessionKapal } from '@/hooks/useSessionKapal';
 import { Input } from '@/components/ui/input';
 import { Kapal } from '@/types';
 import { format, isToday, isYesterday } from 'date-fns';
@@ -30,6 +31,7 @@ export const RiwayatKapal: React.FC<RiwayatKapalProps> = ({
   const [selectedMonth, setSelectedMonth] = useState<string>(() => String(new Date().getMonth()));
   const [filterJenis, setFilterJenis] = useState<string>('semua');
   const [showFilter, setShowFilter] = useState(false);
+  const { ids: sessionIds, toggle: toggleSession, clear: clearSession } = useSessionKapal();
 
   const YEAR_OPTIONS = useMemo(() => {
     const years = new Set<string>();
