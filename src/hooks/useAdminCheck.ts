@@ -24,10 +24,12 @@ export const useAdminCheck = () => {
     const checkAdmin = async () => {
       setCheckingRole(true);
       try {
-        const { data, error } = await supabase.rpc('has_role', {
-          _user_id: user.id,
-          _role: 'admin',
-        });
+        const { data, error } = await supabase
+          .from('user_roles')
+          .select('role')
+          .eq('user_id', user.id)
+          .eq('role', 'admin')
+          .maybeSingle();
         if (!cancelled) {
           setIsAdmin(!!data && !error);
         }
