@@ -574,7 +574,7 @@ ${photosAbsensi.length > 0
           html2canvas: { scale: 2, useCORS: true, letterRendering: true },
           jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
           pagebreak: { mode: ['css', 'legacy'] },
-        })
+        } as any)
         .save();
 
       document.body.removeChild(container);
