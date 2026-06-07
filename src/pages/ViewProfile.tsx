@@ -28,7 +28,8 @@ const ViewProfile = () => {
 
   useEffect(() => {
     if (!userId) return;
-    supabase.from('profiles').select('*').eq('user_id', userId).maybeSingle().then(({ data }) => {
+    // Use safe public view — email/phone are only visible to the owner or admins via the base table
+    supabase.from('public_profiles' as any).select('*').eq('user_id', userId).maybeSingle().then(({ data }) => {
       setProfile(data as any);
       setLoading(false);
     });
