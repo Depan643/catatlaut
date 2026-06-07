@@ -7,16 +7,17 @@ import { NavDropdown } from '@/components/NavDropdown';
 import { UsernameAlert } from '@/components/UsernameAlert';
 import { Ship, Plus, History, Anchor, Loader2 } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { toast } from 'sonner';
 import { useLocale } from '@/i18n/useLocale';
 import { supabase } from '@/integrations/supabase/client';
 
 const Index = () => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { kapalList, addKapal, togglePIPP, deleteKapal, loading } = useKapal();
   const { user } = useAuth();
-  const [activeTab, setActiveTab] = useState('input');
+  const [activeTab, setActiveTab] = useState(searchParams.get('tab') === 'riwayat' ? 'riwayat' : 'input');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { t } = useLocale();
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
