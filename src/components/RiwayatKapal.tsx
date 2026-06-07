@@ -176,6 +176,19 @@ export const RiwayatKapal: React.FC<RiwayatKapalProps> = ({
         </div>
       )}
 
+      {/* Session bar */}
+      {sessionIds.length > 0 && (
+        <div className="flex items-center justify-between gap-2 bg-primary/10 border border-primary/30 px-3 py-2 rounded-lg">
+          <div className="flex items-center gap-2 text-xs text-primary font-medium">
+            <Layers className="w-3.5 h-3.5" />
+            {sessionIds.length} kapal dipilih untuk sesi multi-data
+          </div>
+          <Button variant="ghost" size="sm" onClick={clearSession} className="h-7 text-xs">
+            <X className="w-3 h-3 mr-1" /> Kosongkan
+          </Button>
+        </div>
+      )}
+
       {/* List */}
       <div className="space-y-2">
         {filteredList.length === 0 ? (
@@ -185,8 +198,10 @@ export const RiwayatKapal: React.FC<RiwayatKapalProps> = ({
             <p className="text-sm">{t.dataAkanMuncul}</p>
           </div>
         ) : (
-          filteredList.map((kapal) => (
-            <div key={kapal.id} className="card-elevated p-4 animate-fade-in">
+          filteredList.map((kapal) => {
+            const inSession = sessionIds.includes(kapal.id);
+            return (
+            <div key={kapal.id} className={`card-elevated p-4 animate-fade-in ${inSession ? 'ring-2 ring-primary/40' : ''}`}>
               <div className="flex items-start gap-3">
                 <div className={`p-2.5 rounded-xl ${kapal.jenisPendataan === 'ikan' ? 'bg-primary/10 text-primary' : 'bg-accent/10 text-accent'}`}>
                   <span className="text-2xl">{kapal.jenisPendataan === 'ikan' ? '🐟' : '🦑'}</span>
@@ -218,6 +233,14 @@ export const RiwayatKapal: React.FC<RiwayatKapalProps> = ({
                 </button>
               </div>
               <div className="mt-3 pt-3 border-t border-border/50 flex gap-2">
+                <button onClick={() => toggleSession(kapal.id)}
+                  title={inSession ? 'Keluarkan dari sesi multi-data' : 'Tambah ke sesi multi-data'}
+                  className={`px-3 flex items-center justify-center gap-1.5 py-2 rounded-lg font-medium text-xs transition-all ${
+                    inSession ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground hover:bg-muted/80'
+                  }`}>
+                  <Layers className="w-3.5 h-3.5" />
+                  {inSession ? 'Di Sesi' : 'Pilih'}
+                </button>
                 <button onClick={() => {
                     if (!kapal.donePIPP) {
                       setPippConfirmId(kapal.id);
@@ -253,9 +276,11 @@ export const RiwayatKapal: React.FC<RiwayatKapalProps> = ({
                 </AlertDialog>
               </div>
             </div>
-          ))
+            );
+          })
         )}
       </div>
+
 
       {/* PIPP Confirm Dialog */}
       <AlertDialog open={!!pippConfirmId} onOpenChange={() => setPippConfirmId(null)}>
