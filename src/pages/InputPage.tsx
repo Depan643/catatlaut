@@ -50,7 +50,6 @@ const InputPage = () => {
   const kapal = getKapalById(id || '');
   const [viewMode, setViewMode] = useState<ViewMode>('input');
   const [selectedJenis, setSelectedJenis] = useState('');
-  const [inputReady, setInputReady] = useState(false);
   const [showEditKapal, setShowEditKapal] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(true);
   // Double-click edit state
@@ -60,13 +59,6 @@ const InputPage = () => {
   const [showNotes, setShowNotes] = useState(false);
   const [notes, setNotes] = useState('');
   const [savingNotes, setSavingNotes] = useState(false);
-
-  // Reset ready state whenever a new jenis is picked
-  const handleSelectJenis = (j: string) => {
-    setSelectedJenis(j);
-    setInputReady(false);
-  };
-
 
   const isLocked = kapal?.donePIPP ?? false;
 
@@ -337,44 +329,22 @@ const InputPage = () => {
             <JenisPickerSheet
               jenisPendataan={kapal.jenisPendataan}
               selectedJenis={selectedJenis}
-              onSelect={handleSelectJenis}
+              onSelect={setSelectedJenis}
               recentItems={recentItems}
               weighedJenis={weighedJenis}
             />
-            {selectedJenis && !inputReady && (
-              <div className="animate-fade-in space-y-2">
-                <div className="card-elevated p-4 text-center space-y-3">
-                  <p className="text-xs text-muted-foreground uppercase tracking-wide">Jenis dipilih</p>
-                  <p className="text-xl font-bold text-foreground">{selectedJenis}</p>
-                  <Button
-                    onClick={() => setInputReady(true)}
-                    className="w-full h-12 text-base font-semibold gap-2"
-                  >
-                    <Plus className="w-5 h-5" />
-                    Mulai Input Berat
-                  </Button>
-                </div>
-              </div>
-            )}
-            {selectedJenis && inputReady && (
+            {selectedJenis ? (
               <div className="animate-slide-up space-y-2">
-                <div className="section-header text-sm flex items-center justify-between">
-                  <span>Input Berat - {selectedJenis}</span>
-                  <Button variant="ghost" size="sm" onClick={() => setInputReady(false)} className="h-7 text-xs">
-                    Tutup
-                  </Button>
-                </div>
+                <div className="section-header text-sm">Input Berat - {selectedJenis}</div>
                 <BeratInput selectedJenis={selectedJenis} onConfirm={handleAddEntry} />
               </div>
-            )}
-            {!selectedJenis && (
+            ) : (
               <div className="flex items-center justify-center h-40 text-muted-foreground text-sm text-center px-4">
                 <p>Pilih jenis {kapal.jenisPendataan} dari rekomendasi di atas atau tombol pilih jenis</p>
               </div>
             )}
           </div>
         )}
-
 
         {viewMode === 'tabel' && (
           <div className="flex-1 p-4 overflow-y-auto animate-fade-in">

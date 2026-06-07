@@ -3,19 +3,16 @@ import { useNavigate } from 'react-router-dom';
 import { useKapal } from '@/contexts/KapalContext';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
-import {
-  ArrowLeft, FileDown, Loader2, Upload, Image as ImageIcon, X,
-  FileText, Plus,
-} from 'lucide-react';
+import { ArrowLeft, FileDown, Loader2, Upload, Image as ImageIcon, X, FileText } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Slider } from '@/components/ui/slider';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Textarea } from '@/components/ui/textarea';
 import { format, startOfMonth, endOfMonth } from 'date-fns';
+import { id as idLocale } from 'date-fns/locale';
 import { toast } from 'sonner';
 import { KATEGORI_CUMI } from '@/types';
-import html2pdf from 'html2pdf.js';
 
 const fileToBase64 = (file: File): Promise<string> =>
   new Promise((resolve, reject) => {
@@ -25,48 +22,23 @@ const fileToBase64 = (file: File): Promise<string> =>
     reader.readAsDataURL(file);
   });
 
-// LocalStorage-persisted single image
-const useStoredImage = (key: string) => {
-  const [value, setValue] = useState<string | null>(() => {
-    try { return localStorage.getItem(key); } catch { return null; }
-  });
-  const set = (v: string | null) => {
-    setValue(v);
-    try {
-      if (v) localStorage.setItem(key, v);
-      else localStorage.removeItem(key);
-    } catch {}
-  };
-  return [value, set] as const;
-};
-
-// LocalStorage-persisted array of images
-const useStoredImageList = (key: string) => {
-  const [value, setValue] = useState<string[]>(() => {
-    try {
-      const raw = localStorage.getItem(key);
-      return raw ? JSON.parse(raw) : [];
-    } catch { return []; }
-  });
-  const set = (v: string[]) => {
-    setValue(v);
-    try { localStorage.setItem(key, JSON.stringify(v)); } catch {}
-  };
-  return [value, set] as const;
-};
-
-interface SinglePhotoSlotProps {
+interface PhotoSlotProps {
   label: string;
   description: string;
   value: string | null;
   onChange: (v: string | null) => void;
 }
-const SinglePhotoSlot: React.FC<SinglePhotoSlotProps> = ({ label, description, value, onChange }) => {
+
+const PhotoSlot: React.FC<PhotoSlotProps> = ({ label, description, value, onChange }) => {
   const handle = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    if (file.size > 5 * 1024 * 1024) { toast.error('Maks 5MB'); return; }
-    onChange(await fileToBase64(file));
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error('Maks 5MB');
+      return;
+    }
+    const b64 = await fileToBase64(file);
+    onChange(b64);
   };
   return (
     <div className="card-elevated p-3 space-y-2">
@@ -96,67 +68,6 @@ const SinglePhotoSlot: React.FC<SinglePhotoSlotProps> = ({ label, description, v
   );
 };
 
-interface MultiPhotoSlotProps {
-  label: string;
-  description: string;
-  values: string[];
-  onChange: (v: string[]) => void;
-}
-const MultiPhotoSlot: React.FC<MultiPhotoSlotProps> = ({ label, description, values, onChange }) => {
-  const handle = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(e.target.files || []);
-    if (!files.length) return;
-    const oversize = files.find(f => f.size > 5 * 1024 * 1024);
-    if (oversize) { toast.error('Setiap foto maks 5MB'); return; }
-    const b64s = await Promise.all(files.map(fileToBase64));
-    onChange([...values, ...b64s]);
-    e.target.value = '';
-  };
-  const removeAt = (i: number) => onChange(values.filter((_, idx) => idx !== i));
-  const moveUp = (i: number) => {
-    if (i === 0) return;
-    const next = [...values];
-    [next[i - 1], next[i]] = [next[i], next[i - 1]];
-    onChange(next);
-  };
-  return (
-    <div className="card-elevated p-3 space-y-2">
-      <div>
-        <p className="font-semibold text-sm text-foreground">{label}</p>
-        <p className="text-[11px] text-muted-foreground">{description}</p>
-      </div>
-      <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-        {values.map((v, i) => (
-          <div key={i} className="relative group border rounded overflow-hidden bg-muted">
-            <img src={v} className="w-full h-24 object-cover" alt={`${label} ${i + 1}`} />
-            <div className="absolute top-1 left-1 bg-primary text-primary-foreground text-[10px] font-bold px-1.5 rounded">
-              #{i + 1}
-            </div>
-            <div className="absolute top-1 right-1 flex gap-1">
-              {i > 0 && (
-                <button onClick={() => moveUp(i)} className="bg-card/90 rounded p-0.5 text-[10px] px-1">↑</button>
-              )}
-              <button onClick={() => removeAt(i)} className="bg-destructive/90 text-destructive-foreground rounded p-0.5">
-                <X className="w-3 h-3" />
-              </button>
-            </div>
-          </div>
-        ))}
-        <label className="h-24 border-2 border-dashed border-border rounded cursor-pointer hover:border-primary/50 flex items-center justify-center bg-muted/30">
-          <div className="text-center">
-            <Plus className="w-5 h-5 text-muted-foreground mx-auto" />
-            <p className="text-[10px] text-muted-foreground">Tambah</p>
-          </div>
-          <input type="file" accept="image/*" multiple onChange={handle} className="hidden" />
-        </label>
-      </div>
-      {values.length > 0 && (
-        <p className="text-[10px] text-muted-foreground">{values.length} foto · gunakan ↑ untuk ubah urutan</p>
-      )}
-    </div>
-  );
-};
-
 const MONTH_NAMES = ['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
 
 const LaporanPerikanan = () => {
@@ -169,28 +80,16 @@ const LaporanPerikanan = () => {
     return `${now.getFullYear()}-${String(now.getMonth()).padStart(2, '0')}`;
   });
   const [profile, setProfile] = useState<{ display_name: string; location: string; phone: string } | null>(null);
-
-  // Persistent images (uploaded once)
-  const [kkpLogo, setKkpLogo] = useStoredImage('laporan-kkp-logo');
-  const [ekoTTD, setEkoTTD] = useStoredImage('laporan-eko-ttd');
-
-  // Per-session photos
   const [photoTTD, setPhotoTTD] = useState<string | null>(null);
-  const [photosJadwal, setPhotosJadwal] = useStoredImageList('laporan-jadwal-photos');
-  const [photosAbsensi, setPhotosAbsensi] = useStoredImageList('laporan-absensi-photos');
-
-  // TTD layout controls
-  const [ttdWidth, setTtdWidth] = useState(150);
-  const [ttdOffsetY, setTtdOffsetY] = useState(0);
-  const [ttdOffsetX, setTtdOffsetX] = useState(0);
-
+  const [photoJadwal, setPhotoJadwal] = useState<string | null>(null);
+  const [photoAbsensi, setPhotoAbsensi] = useState<string | null>(null);
   const [supervisor, setSupervisor] = useState('Joko Rianto, S.Pi., M.Pi');
   const [ketuaPIT, setKetuaPIT] = useState('Eko Ady Indrawan, S.St.Pi');
   const [koordEnum, setKoordEnum] = useState('Imam S.St.Pi');
   const [koordPNBP, setKoordPNBP] = useState('Garim, S.E');
   const [koordSyah, setKoordSyah] = useState('Ardyando, S.St.Pi');
   const [nipKetua, setNipKetua] = useState('19850705 202221 1 002');
-  const [generating, setGenerating] = useState<null | 'word' | 'pdf'>(null);
+  const [generating, setGenerating] = useState(false);
 
   useEffect(() => {
     if (!user) return;
@@ -230,6 +129,7 @@ const LaporanPerikanan = () => {
       .sort((a, b) => new Date(a.tanggal).getTime() - new Date(b.tanggal).getTime());
   }, [kapalList, y, m]);
 
+  // Aggregate per jenis ikan across the month
   const volumePerJenis = useMemo(() => {
     const map: Record<string, number> = {};
     filteredKapal.forEach(k => {
@@ -247,27 +147,33 @@ const LaporanPerikanan = () => {
   const lastDate = new Date(y, m + 1, 0);
   const lastDay = lastDate.getDate();
 
-  const buildHtml = () => {
-    const namaPetugas = profile?.display_name || 'Petugas Pendataan';
-    const lokasi = profile?.location || 'PPN Tegalsari';
+  const handleGenerate = async () => {
+    if (filteredKapal.length === 0) {
+      toast.error('Tidak ada data kapal di bulan ini');
+      return;
+    }
+    setGenerating(true);
+    try {
+      const namaPetugas = profile?.display_name || 'Petugas Pendataan';
+      const lokasi = profile?.location || 'PPN Tegalsari';
+      const monthUpper = monthName.toUpperCase();
 
-    const cumiData: Record<string, number> = {};
-    const ikanData: { jenis: string; total: number }[] = [];
-    volumePerJenis.forEach(({ jenis, total }) => {
-      if (
-        KATEGORI_CUMI.cumiCumi.includes(jenis) ||
-        KATEGORI_CUMI.sotong.includes(jenis) ||
-        KATEGORI_CUMI.gurita.includes(jenis)
-      ) {
-        cumiData[jenis] = total;
-      } else {
-        ikanData.push({ jenis, total });
-      }
-    });
+      // Cumi categorization for separate tables
+      const cumiData: Record<string, number> = {};
+      const ikanData: { jenis: string; total: number }[] = [];
+      volumePerJenis.forEach(({ jenis, total }) => {
+        if (
+          KATEGORI_CUMI.cumiCumi.includes(jenis) ||
+          KATEGORI_CUMI.sotong.includes(jenis) ||
+          KATEGORI_CUMI.gurita.includes(jenis)
+        ) {
+          cumiData[jenis] = total;
+        } else {
+          ikanData.push({ jenis, total });
+        }
+      });
 
-    const ttdStyle = `width:${ttdWidth}px;margin-left:${ttdOffsetX}px;margin-top:${ttdOffsetY}px;`;
-
-    return `<!DOCTYPE html><html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40">
+      let html = `<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40">
 <head><meta charset="utf-8"><title>Laporan ${monthName} ${yearNum}</title>
 <xml><w:WordDocument><w:View>Print</w:View><w:Zoom>100</w:Zoom></w:WordDocument></xml>
 <style>
@@ -281,27 +187,25 @@ const LaporanPerikanan = () => {
   th { background-color: #FFFF00; font-weight: bold; text-align: center; }
   .center { text-align: center; }
   .cover { text-align: center; page-break-after: always; }
-  .cover h1 { font-size: 18pt; }
+  .cover h1 { font-size: 18pt; margin-top: 60pt; }
   .cover p { font-size: 14pt; margin: 6pt 0; }
-  .sig { margin-top: 40pt; text-align: center; }
+  .sig { margin-top: 60pt; text-align: center; }
   .pagebreak { page-break-before: always; }
   .right { text-align: right; }
   p { margin: 6pt 0; text-indent: 36pt; }
   ul, ol { margin: 6pt 0 6pt 24pt; }
-  .lampiran-img { max-width: 100%; max-height: 700px; margin: 8pt 0; }
-  .kkp-logo { width: 140px; height: auto; margin: 24pt auto; display: block; }
-  .ttd-wrap { text-align: center; min-height: 90px; }
+  .ttd-img { max-width: 150px; max-height: 80px; }
+  .lampiran-img { max-width: 100%; max-height: 600px; }
 </style>
 </head><body>
 
-<!-- COVER -->
+<!-- COVER PAGE -->
 <div class="cover">
   <h1>LAPORAN PELAKSANAAN KEGIATAN PENDATAAN DAN PENGOLAHAN DATA PRODUKSI HASIL TANGKAPAN</h1>
   <p><b>Bulan ${monthName} Tahun ${yearNum}</b></p>
-  ${kkpLogo ? `<img src="${kkpLogo}" class="kkp-logo" alt="Logo KKP" />` : '<p style="margin:40pt 0;color:#999;"><i>(Logo KKP belum diupload)</i></p>'}
-  <p style="margin-top: 40pt;">Oleh: <b>${namaPetugas}</b></p>
+  <p style="margin-top: 80pt;">Oleh: <b>${namaPetugas}</b></p>
   <p>${lokasi}</p>
-  <p style="margin-top: 60pt;"><b>PELABUHAN PERIKANAN NUSANTARA TEGALSARI</b></p>
+  <p style="margin-top: 100pt;"><b>PELABUHAN PERIKANAN NUSANTARA TEGALSARI</b></p>
   <p><b>DIREKTORAT JENDERAL PERIKANAN TANGKAP</b></p>
   <p><b>KEMENTERIAN KELAUTAN DAN PERIKANAN ${yearNum}</b></p>
 </div>
@@ -322,13 +226,11 @@ const LaporanPerikanan = () => {
 
 <div class="sig">
   <p>Tegal, ${lastDay} ${monthName} ${yearNum}</p>
-  <div class="ttd-wrap">
-    ${photoTTD ? `<img src="${photoTTD}" style="${ttdStyle}" />` : '<br/><br/><br/>'}
-  </div>
+  ${photoTTD ? `<img src="${photoTTD}" class="ttd-img" /><br/>` : '<br/><br/><br/>'}
   <p><b><u>${namaPetugas}</u></b></p>
 </div>
 
-<!-- BAB I -->
+<!-- BAB I PENDAHULUAN -->
 <div class="pagebreak"></div>
 <h2>I. PENDAHULUAN</h2>
 <h3>1.1 Latar Belakang</h3>
@@ -354,12 +256,12 @@ const LaporanPerikanan = () => {
 <p>Lokasi kegiatan pendataan dan pengolahan data produksi hasil tangkapan ikan berada di Kantor Fisher Center Pelabuhan Perikanan Nusantara Tegalsari Jalan Blanak No.10C Tegalsari, Kec. Tegal Barat, Kota Tegal.</p>
 
 <h3>1.5 Waktu Pelaksanaan</h3>
-<p>Waktu pelaksanaan kegiatan pendataan dan pengolahan data hasil perikanan tangkap dilakukan di Pelabuhan Perikanan Nusantara Tegalsari dimulai pada tanggal 01 ${monthName} ${yearNum} sampai dengan ${lastDay} ${monthName} ${yearNum}.</p>
+<p>Waktu pelaksanaan kegiatan pendataan dan pengolahan data hasil perikanan tangkap dilakukan di Pelabuhan Perikanan Nusantara Tegalsari di mulai pada tanggal 01 ${monthName} ${yearNum} sampai dengan ${lastDay} ${monthName} ${yearNum}.</p>
 
 <h3>1.6 Objek Kegiatan</h3>
 <p>Pelaksanaan Kegiatan Pendataan dan Pengolahan Data Produksi Hasil Tangkapan di Pelabuhan Perikanan Nusantara Tegalsari.</p>
 
-<!-- BAB II -->
+<!-- BAB II METODE -->
 <div class="pagebreak"></div>
 <h2>II. METODE DAN PERALATAN</h2>
 <h3>2.1 Metode / Cara</h3>
@@ -377,7 +279,7 @@ const LaporanPerikanan = () => {
 </table>
 <p><i>Sumber: Laporan Petugas Pendataan, ${yearNum}.</i></p>
 
-<!-- BAB III -->
+<!-- BAB III HASIL -->
 <div class="pagebreak"></div>
 <h2>III. HASIL KEGIATAN</h2>
 <h3>3.1 Pendataan dan Pengolahan Data Produksi Hasil Tangkapan</h3>
@@ -386,7 +288,15 @@ const LaporanPerikanan = () => {
 <p><b>Tabel 1. Rekap Kapal dan Volume Produksi Bulan ${monthName} ${yearNum} di PPN Tegalsari</b></p>
 <table>
   <thead>
-    <tr><th>No</th><th>Nama Kapal</th><th>Tanda Selar</th><th>Tanggal</th><th>Alat Tangkap</th><th>Jenis</th><th>Total (kg)</th></tr>
+    <tr>
+      <th>No</th>
+      <th>Nama Kapal</th>
+      <th>Tanda Selar</th>
+      <th>Tanggal</th>
+      <th>Alat Tangkap</th>
+      <th>Jenis</th>
+      <th>Total (kg)</th>
+    </tr>
   </thead>
   <tbody>
     ${filteredKapal.map((k, i) => {
@@ -415,7 +325,9 @@ ${ikanData.length > 0 ? `
   <thead><tr><th>No</th><th>Jenis Ikan</th><th>Volume (kg)</th></tr></thead>
   <tbody>
     ${ikanData.map((d, i) => `<tr>
-      <td class="center">${i + 1}</td><td>${d.jenis}</td><td class="right">${d.total.toLocaleString('id-ID')}</td>
+      <td class="center">${i + 1}</td>
+      <td>${d.jenis}</td>
+      <td class="right">${d.total.toLocaleString('id-ID')}</td>
     </tr>`).join('')}
     <tr style="background:#FFFF00;font-weight:bold;">
       <td colspan="2" class="center">TOTAL IKAN</td>
@@ -433,7 +345,9 @@ ${Object.keys(cumiData).length > 0 ? `
       const kat = KATEGORI_CUMI.cumiCumi.includes(jenis) ? 'Cumi-Cumi'
         : KATEGORI_CUMI.gurita.includes(jenis) ? 'Gurita' : 'Sotong';
       return `<tr>
-        <td class="center">${i + 1}</td><td>${jenis}</td><td class="center">${kat}</td>
+        <td class="center">${i + 1}</td>
+        <td>${jenis}</td>
+        <td class="center">${kat}</td>
         <td class="right">${total.toLocaleString('id-ID')}</td>
       </tr>`;
     }).join('')}
@@ -447,7 +361,7 @@ ${Object.keys(cumiData).length > 0 ? `
 <h3>3.3 Pelaporan Petugas Pengolah Data</h3>
 <p>Pelaporan dilakukan secara berkala melalui sistem aplikasi pendataan dan direkapitulasi dalam laporan bulanan ini sebagai bukti pelaksanaan tugas.</p>
 
-<!-- BAB IV -->
+<!-- BAB IV KESIMPULAN -->
 <div class="pagebreak"></div>
 <h2>IV. KESIMPULAN DAN SARAN</h2>
 <h3>4.1 Kesimpulan</h3>
@@ -469,19 +383,15 @@ ${Object.keys(cumiData).length > 0 ? `
 
 <table style="margin-top:40pt;border:none;">
   <tr style="border:none;">
-    <td style="border:none;text-align:center;width:50%;vertical-align:top;">
-      <p style="text-indent:0;">Mengetahui,<br/>Ketua PIT PPN Tegalsari</p>
-      <div class="ttd-wrap">
-        ${ekoTTD ? `<img src="${ekoTTD}" style="width:140px;" />` : '<br/><br/><br/>'}
-      </div>
-      <p style="text-indent:0;"><b><u>${ketuaPIT}</u></b><br/>NIP. ${nipKetua}</p>
+    <td style="border:none;text-align:center;width:50%;">
+      <p>Mengetahui,<br/>Ketua PIT PPN Tegalsari</p>
+      <br/><br/><br/>
+      <p><b><u>${ketuaPIT}</u></b><br/>NIP. ${nipKetua}</p>
     </td>
-    <td style="border:none;text-align:center;width:50%;vertical-align:top;">
-      <p style="text-indent:0;">Tegal, ${lastDay} ${monthName} ${yearNum}<br/>Petugas Pendataan</p>
-      <div class="ttd-wrap">
-        ${photoTTD ? `<img src="${photoTTD}" style="${ttdStyle}" />` : '<br/><br/><br/>'}
-      </div>
-      <p style="text-indent:0;"><b><u>${namaPetugas}</u></b></p>
+    <td style="border:none;text-align:center;width:50%;">
+      <p>Tegal, ${lastDay} ${monthName} ${yearNum}<br/>Petugas Pendataan</p>
+      ${photoTTD ? `<img src="${photoTTD}" class="ttd-img" />` : '<br/><br/><br/>'}
+      <p><b><u>${namaPetugas}</u></b></p>
     </td>
   </tr>
 </table>
@@ -496,7 +406,15 @@ ${Object.keys(cumiData).length > 0 ? `
 </table>
 <table>
   <thead>
-    <tr><th>No</th><th>Nama Kapal</th><th>Tanggal Bongkar</th><th>Alat Tangkap</th><th>Jenis</th><th>Total (kg)</th><th>Status</th></tr>
+    <tr>
+      <th>No</th>
+      <th>Nama Kapal</th>
+      <th>Tanggal Bongkar</th>
+      <th>Alat Tangkap</th>
+      <th>Jenis</th>
+      <th>Total (kg)</th>
+      <th>Status</th>
+    </tr>
   </thead>
   <tbody>
     ${filteredKapal.map((k, i) => {
@@ -516,25 +434,18 @@ ${Object.keys(cumiData).length > 0 ? `
 
 <div class="pagebreak"></div>
 <h2>Lampiran 2. Jadwal Petugas Pendataan PPN Tegalsari</h2>
-${photosJadwal.length > 0
-  ? photosJadwal.map((p, i) => `<div class="center"><img src="${p}" class="lampiran-img" alt="Jadwal ${i + 1}" /></div>`).join('')
+${photoJadwal
+  ? `<div class="center"><img src="${photoJadwal}" class="lampiran-img" /></div>`
   : '<p class="center"><i>(Foto jadwal belum diupload)</i></p>'}
 
 <div class="pagebreak"></div>
 <h2>Lampiran 3. Presensi PIPP</h2>
-${photosAbsensi.length > 0
-  ? photosAbsensi.map((p, i) => `<div class="center"><img src="${p}" class="lampiran-img" alt="Presensi ${i + 1}" /></div>`).join('')
+${photoAbsensi
+  ? `<div class="center"><img src="${photoAbsensi}" class="lampiran-img" /></div>`
   : '<p class="center"><i>(Foto presensi belum diupload)</i></p>'}
 
 </body></html>`;
-  };
 
-  const handleGenerateWord = async () => {
-    if (filteredKapal.length === 0) { toast.error('Tidak ada data kapal di bulan ini'); return; }
-    setGenerating('word');
-    try {
-      const html = buildHtml();
-      const namaPetugas = profile?.display_name || 'Petugas';
       const blob = new Blob(['\ufeff', html], { type: 'application/msword' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
@@ -542,48 +453,12 @@ ${photosAbsensi.length > 0
       a.download = `Laporan_Perikanan_${namaPetugas.replace(/\s+/g, '_')}_${monthName}_${yearNum}.doc`;
       a.click();
       URL.revokeObjectURL(url);
-      toast.success('File Word berhasil diunduh');
+      toast.success('Laporan berhasil diunduh');
     } catch (err) {
       console.error(err);
-      toast.error('Gagal generate Word');
+      toast.error('Gagal generate laporan');
     } finally {
-      setGenerating(null);
-    }
-  };
-
-  const handleGeneratePDF = async () => {
-    if (filteredKapal.length === 0) { toast.error('Tidak ada data kapal di bulan ini'); return; }
-    setGenerating('pdf');
-    try {
-      const html = buildHtml();
-      const namaPetugas = profile?.display_name || 'Petugas';
-      const container = document.createElement('div');
-      container.innerHTML = html;
-      container.style.position = 'fixed';
-      container.style.left = '-10000px';
-      container.style.top = '0';
-      container.style.width = '210mm';
-      document.body.appendChild(container);
-
-      await html2pdf()
-        .from(container)
-        .set({
-          margin: [15, 15, 15, 20], // mm: top, right, bottom, left
-          filename: `Laporan_Perikanan_${namaPetugas.replace(/\s+/g, '_')}_${monthName}_${yearNum}.pdf`,
-          image: { type: 'jpeg', quality: 0.95 },
-          html2canvas: { scale: 2, useCORS: true, letterRendering: true },
-          jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
-          pagebreak: { mode: ['css', 'legacy'] },
-        } as any)
-        .save();
-
-      document.body.removeChild(container);
-      toast.success('File PDF berhasil diunduh');
-    } catch (err) {
-      console.error(err);
-      toast.error('Gagal generate PDF');
-    } finally {
-      setGenerating(null);
+      setGenerating(false);
     }
   };
 
@@ -606,13 +481,14 @@ ${photosAbsensi.length > 0
             </Button>
             <div className="flex-1 min-w-0">
               <h1 className="text-base sm:text-lg font-bold truncate">Laporan Perikanan</h1>
-              <p className="text-xs opacity-80">Generate laporan bulanan: Word & PDF</p>
+              <p className="text-xs opacity-80">Generate laporan bulanan format Word</p>
             </div>
           </div>
         </div>
       </header>
 
-      <main className="container py-4 pb-32 space-y-4">
+      <main className="container py-4 pb-20 space-y-4">
+        {/* Pilih bulan */}
         <div className="card-elevated p-3 space-y-2">
           <Label className="text-xs font-semibold">Bulan Laporan</Label>
           <Select value={selectedMonth} onValueChange={setSelectedMonth}>
@@ -635,109 +511,74 @@ ${photosAbsensi.length > 0
           </div>
         </div>
 
-        {/* Persistent assets */}
+        {/* Foto upload */}
         <div className="space-y-2">
           <div className="flex items-center gap-2 text-sm font-semibold">
-            <ImageIcon className="w-4 h-4 text-primary" /> Aset Tetap (upload sekali, tersimpan)
+            <ImageIcon className="w-4 h-4 text-primary" /> Foto Lampiran
           </div>
-          <SinglePhotoSlot label="Logo KKP" description="Logo Kementerian Kelautan dan Perikanan untuk cover"
-            value={kkpLogo} onChange={setKkpLogo} />
-          <SinglePhotoSlot label="TTD Pak Eko (Ketua PIT)" description="Tanda tangan ketua PIT untuk halaman penutup"
-            value={ekoTTD} onChange={setEkoTTD} />
+          <PhotoSlot
+            label="Tanda Tangan (TTD)"
+            description="Foto/scan tanda tangan petugas"
+            value={photoTTD}
+            onChange={setPhotoTTD}
+          />
+          <PhotoSlot
+            label="Jadwal Kerja"
+            description="Foto jadwal kerja bulanan"
+            value={photoJadwal}
+            onChange={setPhotoJadwal}
+          />
+          <PhotoSlot
+            label="Presensi PIPP"
+            description="Screenshot absensi/presensi bulan ini"
+            value={photoAbsensi}
+            onChange={setPhotoAbsensi}
+          />
         </div>
 
-        {/* User TTD with layout controls */}
-        <div className="space-y-2">
-          <div className="flex items-center gap-2 text-sm font-semibold">
-            <ImageIcon className="w-4 h-4 text-primary" /> Tanda Tangan Anda
-          </div>
-          <SinglePhotoSlot label="TTD Petugas" description="Foto/scan tanda tangan Anda"
-            value={photoTTD} onChange={setPhotoTTD} />
-          {photoTTD && (
-            <div className="card-elevated p-3 space-y-3">
-              <div>
-                <div className="flex justify-between text-xs mb-1">
-                  <Label>Lebar TTD</Label>
-                  <span className="font-mono text-muted-foreground">{ttdWidth}px</span>
-                </div>
-                <Slider value={[ttdWidth]} min={60} max={300} step={5}
-                  onValueChange={(v) => setTtdWidth(v[0])} />
-              </div>
-              <div>
-                <div className="flex justify-between text-xs mb-1">
-                  <Label>Geser Horizontal</Label>
-                  <span className="font-mono text-muted-foreground">{ttdOffsetX}px</span>
-                </div>
-                <Slider value={[ttdOffsetX]} min={-100} max={100} step={2}
-                  onValueChange={(v) => setTtdOffsetX(v[0])} />
-              </div>
-              <div>
-                <div className="flex justify-between text-xs mb-1">
-                  <Label>Geser Vertikal</Label>
-                  <span className="font-mono text-muted-foreground">{ttdOffsetY}px</span>
-                </div>
-                <Slider value={[ttdOffsetY]} min={-40} max={40} step={2}
-                  onValueChange={(v) => setTtdOffsetY(v[0])} />
-              </div>
-              <div className="border rounded bg-muted/40 p-3 text-center">
-                <p className="text-[10px] text-muted-foreground mb-1 uppercase">Preview</p>
-                <div className="min-h-[80px] flex items-center justify-center">
-                  <img src={photoTTD} alt="preview"
-                    style={{ width: `${ttdWidth}px`, marginLeft: `${ttdOffsetX}px`, marginTop: `${ttdOffsetY}px` }} />
-                </div>
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* Multi-photo lampiran */}
-        <div className="space-y-2">
-          <div className="flex items-center gap-2 text-sm font-semibold">
-            <ImageIcon className="w-4 h-4 text-primary" /> Lampiran (bisa lebih dari 1)
-          </div>
-          <MultiPhotoSlot label="Jadwal Kerja" description="Bisa upload beberapa halaman jadwal"
-            values={photosJadwal} onChange={setPhotosJadwal} />
-          <MultiPhotoSlot label="Presensi PIPP" description="Bisa upload beberapa halaman presensi"
-            values={photosAbsensi} onChange={setPhotosAbsensi} />
-        </div>
-
+        {/* Editable fields */}
         <details className="card-elevated p-3">
           <summary className="font-semibold text-sm cursor-pointer flex items-center gap-2">
             <FileText className="w-4 h-4 text-primary" /> Nama Pejabat (opsional)
           </summary>
           <div className="space-y-2 mt-3">
-            <div><Label className="text-xs">Supervisor PIT</Label>
-              <Input value={supervisor} onChange={e => setSupervisor(e.target.value)} className="h-9" /></div>
-            <div><Label className="text-xs">Ketua PIT</Label>
-              <Input value={ketuaPIT} onChange={e => setKetuaPIT(e.target.value)} className="h-9" /></div>
-            <div><Label className="text-xs">NIP Ketua PIT</Label>
-              <Input value={nipKetua} onChange={e => setNipKetua(e.target.value)} className="h-9" /></div>
-            <div><Label className="text-xs">Koordinator Enumerator</Label>
-              <Input value={koordEnum} onChange={e => setKoordEnum(e.target.value)} className="h-9" /></div>
-            <div><Label className="text-xs">Koordinator PNBP</Label>
-              <Input value={koordPNBP} onChange={e => setKoordPNBP(e.target.value)} className="h-9" /></div>
-            <div><Label className="text-xs">Koordinator Kesyahbandaran</Label>
-              <Input value={koordSyah} onChange={e => setKoordSyah(e.target.value)} className="h-9" /></div>
+            <div>
+              <Label className="text-xs">Supervisor PIT</Label>
+              <Input value={supervisor} onChange={e => setSupervisor(e.target.value)} className="h-9" />
+            </div>
+            <div>
+              <Label className="text-xs">Ketua PIT</Label>
+              <Input value={ketuaPIT} onChange={e => setKetuaPIT(e.target.value)} className="h-9" />
+            </div>
+            <div>
+              <Label className="text-xs">NIP Ketua PIT</Label>
+              <Input value={nipKetua} onChange={e => setNipKetua(e.target.value)} className="h-9" />
+            </div>
+            <div>
+              <Label className="text-xs">Koordinator Enumerator</Label>
+              <Input value={koordEnum} onChange={e => setKoordEnum(e.target.value)} className="h-9" />
+            </div>
+            <div>
+              <Label className="text-xs">Koordinator PNBP</Label>
+              <Input value={koordPNBP} onChange={e => setKoordPNBP(e.target.value)} className="h-9" />
+            </div>
+            <div>
+              <Label className="text-xs">Koordinator Kesyahbandaran</Label>
+              <Input value={koordSyah} onChange={e => setKoordSyah(e.target.value)} className="h-9" />
+            </div>
           </div>
         </details>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-          <Button onClick={handleGenerateWord}
-            disabled={!!generating || filteredKapal.length === 0}
-            className="h-12 text-base font-semibold gap-2">
-            {generating === 'word'
-              ? <><Loader2 className="w-4 h-4 animate-spin" /> Membuat Word...</>
-              : <><FileDown className="w-4 h-4" /> Download Word</>}
-          </Button>
-          <Button onClick={handleGeneratePDF}
-            disabled={!!generating || filteredKapal.length === 0}
-            variant="secondary"
-            className="h-12 text-base font-semibold gap-2">
-            {generating === 'pdf'
-              ? <><Loader2 className="w-4 h-4 animate-spin" /> Membuat PDF...</>
-              : <><FileDown className="w-4 h-4" /> Download PDF</>}
-          </Button>
-        </div>
+        {/* Generate button */}
+        <Button
+          onClick={handleGenerate}
+          disabled={generating || filteredKapal.length === 0}
+          className="w-full h-12 text-base font-semibold gap-2"
+        >
+          {generating
+            ? <><Loader2 className="w-4 h-4 animate-spin" /> Generating...</>
+            : <><FileDown className="w-4 h-4" /> Generate & Download Word</>}
+        </Button>
         {filteredKapal.length === 0 && (
           <p className="text-center text-xs text-muted-foreground">Belum ada data kapal di bulan ini</p>
         )}

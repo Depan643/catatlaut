@@ -49,7 +49,7 @@ export const NumpadKeyboard: React.FC<NumpadKeyboardProps> = ({
 
       {/* Keypad Grid */}
       <div className="grid grid-cols-3 gap-1.5">
-        {['1', '2', '3', '4', '5', '6', '7', '8', '9'].map((key) => (
+        {['7', '8', '9', '4', '5', '6', '1', '2', '3'].map((key) => (
           <button
             key={key}
             type="button"
