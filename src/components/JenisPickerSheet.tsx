@@ -105,11 +105,13 @@ export const JenisPickerSheet: React.FC<JenisPickerSheetProps> = ({
             <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
               <Input
-                autoFocus
                 value={search}
                 onChange={e => setSearch(e.target.value)}
-                placeholder="Cari..."
+                placeholder="Cari (opsional)..."
                 className="pl-9 pr-9 h-11"
+                onFocus={(e) => {
+                  // Prevent auto-keyboard - only show when user explicitly taps input again
+                }}
               />
               {search && (
                 <button
