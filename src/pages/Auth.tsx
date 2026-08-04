@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -13,6 +13,21 @@ import { Separator } from '@/components/ui/separator';
 
 const Auth = () => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const rawNext = searchParams.get('next') || '';
+  // Only allow same-origin relative paths.
+  const nextPath = /^\/(?!\/)/.test(rawNext) ? rawNext : '';
+  const returnUrl = nextPath
+    ? `${window.location.origin}/auth?next=${encodeURIComponent(nextPath)}`
+    : window.location.origin;
+
+  React.useEffect(() => {
+    if (!nextPath) return;
+    supabase.auth.getSession().then(({ data }) => {
+      if (data.session) window.location.replace(nextPath);
+    });
+  }, [nextPath]);
+
   const [isLoading, setIsLoading] = useState(false);
   const [loginEmail, setLoginEmail] = useState('');
   const [loginPassword, setLoginPassword] = useState('');
@@ -26,7 +41,7 @@ const Auth = () => {
     setGoogleLoading(true);
     try {
       const { error } = await lovable.auth.signInWithOAuth("google", {
-        redirect_uri: window.location.origin,
+        redirect_uri: returnUrl,
       });
       if (error) throw error;
     } catch (error: any) {
@@ -58,13 +73,15 @@ const Auth = () => {
           .maybeSingle();
 
         toast.success('Login berhasil!');
-        if (roleData) {
+        if (nextPath) {
+          window.location.replace(nextPath);
+        } else if (roleData) {
           navigate('/admin');
         } else {
           navigate('/');
         }
       } else {
-        navigate('/');
+        navigate(nextPath || '/');
       }
     } catch (error: any) {
       console.error('Login error:', error);
@@ -94,7 +111,7 @@ const Auth = () => {
         email: signupEmail,
         password: signupPassword,
         options: {
-          emailRedirectTo: window.location.origin,
+          emailRedirectTo: returnUrl,
           data: {
             display_name: signupName,
           },
