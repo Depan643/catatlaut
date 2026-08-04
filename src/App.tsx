@@ -20,6 +20,7 @@ import LaporanBulanan from "./pages/LaporanBulanan";
 import LaporanPerikanan from "./pages/LaporanPerikanan";
 import ViewProfile from "./pages/ViewProfile";
 import NotFound from "./pages/NotFound";
+import OAuthConsent from "./pages/OAuthConsent";
 
 const ACCENT_COLORS: Record<string, { light: string; dark: string }> = {
   blue: { light: '215 75% 28%', dark: '205 85% 55%' },
@@ -79,6 +80,7 @@ const App = () => (
         <BrowserRouter>
           <Routes>
             <Route path="/auth" element={<Auth />} />
+            <Route path="/.lovable/oauth/consent" element={<OAuthConsent />} />
             <Route path="/" element={<ProtectedRoute><Index /></ProtectedRoute>} />
             <Route path="/input/:id" element={<ProtectedRoute><InputPage /></ProtectedRoute>} />
             <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
