@@ -1,0 +1,154 @@
+{
+  "version": 1,
+  "sdk_version": "0.26.1",
+  "path": "/mcp",
+  "auth": {
+    "type": "oauth",
+    "issuer": "https://umkoilkbffvqntebrrhx.supabase.co/auth/v1",
+    "accepted_audiences": [
+      "authenticated"
+    ]
+  },
+  "mcp": {
+    "server": {
+      "name": "catat-laut",
+      "version": "0.1.0",
+      "title": "Catat Laut"
+    },
+    "tools": [
+      {
+        "name": "list_ships",
+        "title": "Daftar kapal",
+        "description": "List ship unloading records (kapal) for the signed-in user, newest first. Optionally filter by month, year, or PIPP status.",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "year": {
+              "type": "integer",
+              "minimum": 2000,
+              "maximum": 2100,
+              "description": "Filter by year of tanggal."
+            },
+            "month": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 12,
+              "description": "Filter by month (1-12) of tanggal."
+            },
+            "done_pipp": {
+              "type": "boolean",
+              "description": "Filter by PIPP completion status."
+            },
+            "limit": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 200,
+              "default": 50,
+              "description": "Max rows to return."
+            }
+          },
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "get_ship_detail",
+        "title": "Detail kapal & hasil bongkar",
+        "description": "Get one ship record with all of its catch entries (jenis, berat) plus totals per species.",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "kapal_id": {
+              "type": "string",
+              "format": "uuid",
+              "description": "The ship record id returned by list_ships."
+            }
+          },
+          "required": [
+            "kapal_id"
+          ],
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "list_fish_species",
+        "title": "Daftar jenis ikan",
+        "description": "List the active fish/squid species catalog (nama ikan, nama latin, kategori, harga).",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "search": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Filter by name (case-insensitive)."
+            },
+            "kategori": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Filter by kategori."
+            }
+          },
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "add_catch_entry",
+        "title": "Tambah data hasil bongkar",
+        "description": "Add a catch entry (jenis + berat in kg) to an existing ship unloading record owned by the signed-in user.",
+        "annotations": {
+          "readOnlyHint": false,
+          "destructiveHint": false,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "kapal_id": {
+              "type": "string",
+              "format": "uuid",
+              "description": "Target ship record id."
+            },
+            "jenis": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Species name, e.g. 'Peperek'."
+            },
+            "berat": {
+              "type": "number",
+              "exclusiveMinimum": 0,
+              "description": "Weight in kilograms."
+            }
+          },
+          "required": [
+            "kapal_id",
+            "jenis",
+            "berat"
+          ],
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        },
+        "outputSchema": null
+      }
+    ]
+  }
+}
